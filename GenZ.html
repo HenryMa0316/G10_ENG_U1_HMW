@@ -1,0 +1,1358 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0">
+    <title>Why Are Gen Z Not Growing Up</title>
+    <style>
+        @import url('https://fonts.googleapis.com/css2?family=Orbitron:wght@400;700&family=Share+Tech+Mono&family=Noto+Sans:wght@400;600;700&display=swap');
+
+        :root {
+            --bg: #0a0a12;
+            --panel: #12121e;
+            --neon: #00f5d4;
+            --neon2: #7b2cbf;
+            --gold: #c9a84c;
+            --bad: #8b2252;
+            --text: #e8e8f0;
+            --muted: #8a8aa0;
+            --room-ok: #00f5d4;
+            --room-low: #ff3355;
+        }
+
+        * { box-sizing: border-box; margin: 0; padding: 0; }
+
+        html, body {
+            width: 100%;
+            height: 100%;
+            overflow: hidden;
+            background: var(--bg);
+            color: var(--text);
+            font-family: 'Noto Sans', system-ui, sans-serif;
+        }
+
+        body::before {
+            content: '';
+            position: fixed;
+            inset: 0;
+            background: repeating-linear-gradient(0deg, transparent, transparent 2px, rgba(0,0,0,0.1) 2px, rgba(0,0,0,0.1) 4px);
+            pointer-events: none;
+            z-index: 9999;
+        }
+        body::after {
+            content: '';
+            position: fixed;
+            inset: 0;
+            background: radial-gradient(ellipse at center, transparent 55%, rgba(0,0,0,0.5) 100%);
+            pointer-events: none;
+            z-index: 9998;
+            transition: opacity 0.5s;
+        }
+        body.vignette::after {
+            background: radial-gradient(ellipse at center, transparent 35%, rgba(0,0,0,0.75) 100%);
+        }
+
+        #app {
+            width: 100vw;
+            height: 100vh;
+            display: flex;
+            flex-direction: column;
+            position: relative;
+        }
+
+        /* ===== HUD ===== */
+        #hud {
+            display: none;
+            height: 48px;
+            background: linear-gradient(180deg, #16162a, #0e0e1a);
+            border-bottom: 1px solid #2a2a45;
+            align-items: center;
+            padding: 0 16px;
+            gap: 16px;
+            flex-shrink: 0;
+            z-index: 100;
+        }
+        #hud.active { display: flex; }
+
+        .hud-name {
+            font-family: 'Orbitron', sans-serif;
+            font-size: 14px;
+            letter-spacing: 1px;
+            color: var(--neon);
+            min-width: 120px;
+        }
+        .hud-age {
+            font-family: 'Share Tech Mono', monospace;
+            font-size: 13px;
+            color: var(--muted);
+        }
+
+        .room-wrap { flex: 1; max-width: 280px; margin: 0 auto; }
+        .room-label {
+            font-size: 10px;
+            letter-spacing: 2px;
+            text-transform: uppercase;
+            color: var(--muted);
+            text-align: center;
+            margin-bottom: 2px;
+        }
+        .room-bar {
+            height: 12px;
+            background: #1a1a2e;
+            border: 1px solid #333;
+            border-radius: 2px;
+            overflow: hidden;
+            position: relative;
+        }
+        .room-fill {
+            height: 100%;
+            background: linear-gradient(90deg, var(--room-ok), #00c9a7);
+            transition: width 0.45s ease, background 0.3s;
+            box-shadow: 0 0 10px var(--room-ok);
+        }
+        .room-fill.low {
+            background: linear-gradient(90deg, var(--room-low), #ff6680);
+            box-shadow: 0 0 10px var(--room-low);
+        }
+        .room-num {
+            position: absolute;
+            right: 5px; top: 50%;
+            transform: translateY(-50%);
+            font-family: 'Share Tech Mono', monospace;
+            font-size: 10px;
+            color: #fff;
+            text-shadow: 0 0 3px #000;
+        }
+
+        .markers {
+            display: flex;
+            gap: 5px;
+            flex-wrap: wrap;
+            max-width: 260px;
+            justify-content: flex-end;
+        }
+        .marker {
+            font-size: 10px;
+            padding: 2px 7px;
+            border-radius: 3px;
+            border: 1px solid;
+            white-space: nowrap;
+        }
+        .marker.good { background: rgba(201,168,76,0.15); border-color: var(--gold); color: var(--gold); }
+        .marker.bad  { background: rgba(139,34,82,0.2); border-color: var(--bad); color: #ff6b9d; }
+
+        /* ===== SCREENS ===== */
+        .screen {
+            display: none;
+            flex: 1;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            padding: 12px 16px;
+            overflow: hidden;
+            position: relative;
+        }
+        .screen.active { display: flex; }
+
+        /* Title */
+        #title-screen h1 {
+            font-family: 'Orbitron', sans-serif;
+            font-size: 26px;
+            letter-spacing: 3px;
+            color: var(--neon);
+            text-shadow: 0 0 18px rgba(0,245,212,0.45);
+            text-align: center;
+            line-height: 1.3;
+            margin-bottom: 6px;
+        }
+        #title-screen .sub {
+            color: var(--muted);
+            font-size: 13px;
+            margin-bottom: 32px;
+            text-align: center;
+        }
+
+        .start-btn, .begin-btn, .continue-btn, .submit-eval, .confirm-targets {
+            font-family: 'Orbitron', sans-serif;
+            font-size: 14px;
+            letter-spacing: 1.5px;
+            padding: 11px 36px;
+            background: transparent;
+            border: 2px solid var(--neon);
+            color: var(--neon);
+            cursor: pointer;
+            transition: all 0.22s;
+            box-shadow: 0 0 16px rgba(0,245,212,0.15);
+        }
+        .start-btn:hover, .begin-btn:hover, .continue-btn:hover, .submit-eval:hover, .confirm-targets:hover {
+            background: rgba(0,245,212,0.12);
+            box-shadow: 0 0 24px rgba(0,245,212,0.4);
+        }
+
+        /* Character select */
+        #char-screen h2 {
+            font-family: 'Orbitron', sans-serif;
+            font-size: 18px;
+            letter-spacing: 2px;
+            margin-bottom: 20px;
+        }
+        .char-row { display: flex; gap: 20px; }
+        .char-card {
+            width: 200px;
+            background: linear-gradient(160deg, #1a1a2e, #12121e);
+            border: 2px solid #2a2a45;
+            border-radius: 6px;
+            padding: 16px 14px;
+            cursor: pointer;
+            transition: all 0.25s;
+            position: relative;
+        }
+        .char-card::before, .char-card::after {
+            content: '◈';
+            position: absolute;
+            color: #333;
+            font-size: 11px;
+        }
+        .char-card::before { top: 6px; left: 8px; }
+        .char-card::after  { bottom: 6px; right: 8px; }
+        .char-card:hover {
+            border-color: var(--neon);
+            box-shadow: 0 0 20px rgba(0,245,212,0.22);
+            transform: translateY(-5px);
+        }
+        .char-card .name {
+            font-family: 'Orbitron', sans-serif;
+            font-size: 16px;
+            color: var(--neon);
+            margin-bottom: 4px;
+        }
+        .char-card .age { font-size: 11px; color: var(--muted); margin-bottom: 8px; }
+        .char-card .desc { font-size: 12px; line-height: 1.45; color: #b0b0c0; }
+
+        /* Background */
+        #bg-screen .story-box {
+            max-width: 580px;
+            max-height: 78vh;
+            overflow-y: auto;
+            background: linear-gradient(160deg, #16162a, #10101c);
+            border: 1px solid #2a2a45;
+            border-radius: 8px;
+            padding: 24px 28px;
+            position: relative;
+        }
+        #bg-screen .story-box::before {
+            content: '';
+            position: absolute;
+            inset: 5px;
+            border: 1px solid #252540;
+            border-radius: 4px;
+            pointer-events: none;
+        }
+        #bg-screen h2 {
+            font-family: 'Orbitron', sans-serif;
+            font-size: 16px;
+            color: var(--neon);
+            margin-bottom: 14px;
+            letter-spacing: 1px;
+        }
+        #bg-screen .story-text {
+            font-size: 13.5px;
+            line-height: 1.7;
+            color: #d0d0e0;
+            white-space: pre-wrap;
+        }
+        #bg-screen .begin-btn { display: block; margin: 20px auto 0; }
+
+        /* ===== Target Age Setting ===== */
+        #target-screen .target-box {
+            max-width: 520px;
+            width: 100%;
+            background: linear-gradient(160deg, #16162a, #10101c);
+            border: 1px solid #2a2a45;
+            border-radius: 8px;
+            padding: 24px 28px;
+        }
+        #target-screen h2 {
+            font-family: 'Orbitron', sans-serif;
+            font-size: 16px;
+            color: var(--neon);
+            margin-bottom: 6px;
+            letter-spacing: 1px;
+        }
+        #target-screen .hint {
+            font-size: 12px;
+            color: var(--muted);
+            margin-bottom: 18px;
+        }
+        .target-row {
+            display: grid;
+            grid-template-columns: 1fr 70px;
+            align-items: center;
+            gap: 12px;
+            margin-bottom: 12px;
+        }
+        .target-row label {
+            font-size: 13px;
+            color: #c8c8d8;
+        }
+        .target-row input {
+            width: 70px;
+            padding: 7px 8px;
+            background: #1a1a2e;
+            border: 1px solid #3a3a55;
+            border-radius: 4px;
+            color: var(--neon);
+            font-family: 'Share Tech Mono', monospace;
+            font-size: 15px;
+            text-align: center;
+        }
+        .target-row input:focus {
+            outline: none;
+            border-color: var(--neon);
+            box-shadow: 0 0 8px rgba(0,245,212,0.3);
+        }
+        .confirm-targets {
+            display: block;
+            margin: 22px auto 0;
+        }
+
+        /* Game */
+        #game-screen {
+            justify-content: flex-start;
+            padding-top: 8px;
+        }
+        .node-box {
+            max-width: 560px;
+            width: 100%;
+            background: linear-gradient(160deg, #16162a, #10101c);
+            border: 1px solid #2a2a45;
+            border-radius: 7px;
+            padding: 16px 20px;
+            margin-bottom: 12px;
+            flex-shrink: 0;
+        }
+        .node-box .node-age {
+            font-family: 'Orbitron', sans-serif;
+            font-size: 12px;
+            color: var(--gold);
+            letter-spacing: 1px;
+            margin-bottom: 6px;
+        }
+        .node-box .node-text {
+            font-size: 14px;
+            line-height: 1.55;
+            color: #d8d8e8;
+        }
+
+        .draw-area {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            gap: 10px;
+            flex-shrink: 0;
+        }
+        .draw-prompt { font-size: 13px; color: var(--muted); }
+        .type-btns { display: flex; gap: 8px; flex-wrap: wrap; justify-content: center; }
+        .type-btn {
+            font-family: 'Share Tech Mono', monospace;
+            font-size: 12px;
+            padding: 8px 14px;
+            background: #1a1a2e;
+            border: 1px solid #3a3a55;
+            color: var(--text);
+            cursor: pointer;
+            border-radius: 4px;
+            transition: all 0.2s;
+        }
+        .type-btn:hover:not(:disabled) {
+            border-color: var(--neon);
+            color: var(--neon);
+            box-shadow: 0 0 10px rgba(0,245,212,0.25);
+        }
+        .type-btn:disabled { opacity: 0.35; cursor: not-allowed; }
+        .type-btn.boss { border-color: var(--gold); color: var(--gold); }
+        .skip-btn {
+            font-size: 12px;
+            color: var(--muted);
+            background: none;
+            border: none;
+            cursor: pointer;
+            text-decoration: underline;
+        }
+        .skip-btn:hover { color: var(--text); }
+
+        /* Card fan */
+        .card-fan {
+            display: none;
+            position: relative;
+            width: 480px;
+            height: 290px;
+            margin-top: 4px;
+            flex-shrink: 0;
+        }
+        .card-fan.active { display: block; }
+
+        .card {
+            position: absolute;
+            width: 160px;
+            height: 230px;
+            left: 50%;
+            top: 30px;
+            transform-origin: center bottom;
+            cursor: pointer;
+            transition: transform 0.3s cubic-bezier(0.2,0.8,0.2,1), filter 0.25s, opacity 0.25s;
+            perspective: 800px;
+        }
+        .card:nth-child(1) { transform: translateX(-175px) rotate(-11deg); z-index: 1; }
+        .card:nth-child(2) { transform: translateX(-80px) rotate(0deg); z-index: 2; }
+        .card:nth-child(3) { transform: translateX(15px) rotate(11deg); z-index: 1; }
+
+        .card:hover:not(.greyed):not(.flipped) {
+            transform: translateX(-80px) rotate(0deg) translateY(-22px) scale(1.06) !important;
+            z-index: 10;
+            filter: drop-shadow(0 0 14px rgba(0,245,212,0.5));
+        }
+        .card:nth-child(1):hover:not(.greyed):not(.flipped) {
+            transform: translateX(-175px) rotate(-11deg) translateY(-22px) scale(1.06) !important;
+        }
+        .card:nth-child(3):hover:not(.greyed):not(.flipped) {
+            transform: translateX(15px) rotate(11deg) translateY(-22px) scale(1.06) !important;
+        }
+
+        .card.greyed {
+            filter: grayscale(0.9) brightness(0.42);
+            pointer-events: none;
+            opacity: 0.5;
+        }
+        .card.flipped .card-inner { transform: rotateY(180deg); }
+
+        .card-inner {
+            width: 100%; height: 100%;
+            position: relative;
+            transition: transform 0.55s;
+            transform-style: preserve-3d;
+        }
+        .card-face {
+            position: absolute;
+            inset: 0;
+            backface-visibility: hidden;
+            border-radius: 7px;
+            overflow: hidden;
+        }
+
+        .card-back {
+            background: linear-gradient(145deg, #1a1a2e, #0e0e1a);
+            border: 2px solid #3a3a55;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            box-shadow: inset 0 0 0 1px #252540;
+        }
+        .card-back .corners { position: absolute; inset: 6px; pointer-events: none; }
+        .card-back .corners span { position: absolute; color: #3a3a55; font-size: 12px; }
+        .card-back .corners span:nth-child(1){top:0;left:0}
+        .card-back .corners span:nth-child(2){top:0;right:0}
+        .card-back .corners span:nth-child(3){bottom:0;left:0}
+        .card-back .corners span:nth-child(4){bottom:0;right:0}
+        .card-back .badge {
+            width: 48px; height: 48px;
+            border: 2px solid var(--neon);
+            border-radius: 50%;
+            display: flex; align-items: center; justify-content: center;
+            animation: pulse 2s infinite;
+            box-shadow: 0 0 12px rgba(0,245,212,0.35);
+        }
+        .card-back .badge span {
+            font-family: 'Orbitron', sans-serif;
+            font-size: 9px;
+            color: var(--neon);
+            text-align: center;
+            line-height: 1.15;
+        }
+        @keyframes pulse {
+            0%,100%{box-shadow:0 0 10px rgba(0,245,212,0.25)}
+            50%{box-shadow:0 0 18px rgba(0,245,212,0.6)}
+        }
+        .card-back .label {
+            margin-top: 10px;
+            font-size: 10px;
+            letter-spacing: 1.5px;
+            color: #555;
+            text-transform: uppercase;
+        }
+
+        .card-front {
+            background: linear-gradient(160deg, #1e1e32, #141422);
+            border: 2px solid #4a4a6a;
+            transform: rotateY(180deg);
+            padding: 8px;
+            display: flex;
+            flex-direction: column;
+            font-size: 10.5px;
+            line-height: 1.35;
+        }
+        .card-front.bad-boss  { border-color: var(--bad); box-shadow: 0 0 12px rgba(139,34,82,0.35); }
+        .card-front.good-boss { border-color: var(--gold); box-shadow: 0 0 12px rgba(201,168,76,0.35); }
+
+        .card-front .type-tag {
+            font-family: 'Share Tech Mono', monospace;
+            font-size: 9px;
+            letter-spacing: 1px;
+            text-transform: uppercase;
+            color: var(--muted);
+            margin-bottom: 4px;
+        }
+        .card-front .title {
+            font-family: 'Orbitron', sans-serif;
+            font-size: 12px;
+            color: var(--neon);
+            margin-bottom: 5px;
+            line-height: 1.2;
+        }
+        .card-front.bad-boss .title  { color: #ff6b9d; }
+        .card-front.good-boss .title { color: var(--gold); }
+        .card-front .narrative { color: #c0c0d0; margin-bottom: 5px; flex: 1; overflow: hidden; }
+        .card-front .data {
+            font-size: 9.5px;
+            color: #8a9ab0;
+            border-top: 1px solid #2a2a40;
+            padding-top: 4px;
+            margin-bottom: 4px;
+        }
+        .card-front .effects { font-size: 9.5px; color: #a0a0b8; }
+        .card-front .effects li { margin-left: 11px; list-style: disc; }
+        .card-front .chip {
+            display: inline-block;
+            margin-top: 4px;
+            padding: 1px 6px;
+            border-radius: 3px;
+            font-size: 9.5px;
+            border: 1px solid;
+        }
+        .card-front .chip.good { border-color: var(--gold); color: var(--gold); }
+        .card-front .chip.bad  { border-color: var(--bad); color: #ff6b9d; }
+
+        .choice-btns { display: flex; flex-direction: column; gap: 5px; margin-top: 6px; }
+        .choice-btns button {
+            font-size: 10.5px;
+            padding: 5px 6px;
+            background: #252540;
+            border: 1px solid #4a4a6a;
+            color: var(--text);
+            cursor: pointer;
+            border-radius: 3px;
+        }
+        .choice-btns button:hover { border-color: var(--neon); color: var(--neon); }
+
+        .card-result {
+            display: none;
+            text-align: center;
+            margin-top: 8px;
+            flex-shrink: 0;
+        }
+        .card-result.active { display: block; }
+        .card-result .msg { font-size: 12px; color: var(--muted); margin-bottom: 8px; }
+
+        /* Ending */
+        #end-screen {
+            overflow-y: auto;
+            justify-content: flex-start;
+            padding: 20px 16px 40px;
+        }
+        #end-screen .end-box { max-width: 620px; width: 100%; }
+        #end-screen h2 {
+            font-family: 'Orbitron', sans-serif;
+            font-size: 20px;
+            color: var(--neon);
+            margin-bottom: 16px;
+            text-align: center;
+            letter-spacing: 2px;
+        }
+
+        .timeline {
+            background: #141422;
+            border: 1px solid #2a2a45;
+            border-radius: 6px;
+            padding: 16px 18px;
+            margin-bottom: 20px;
+        }
+        .timeline h3 {
+            font-size: 13px;
+            color: var(--gold);
+            margin-bottom: 12px;
+            letter-spacing: 1px;
+        }
+        .tl-header, .tl-row {
+            display: grid;
+            grid-template-columns: 1fr 60px 60px;
+            gap: 8px;
+            align-items: center;
+            font-size: 13px;
+        }
+        .tl-header {
+            color: var(--muted);
+            font-size: 11px;
+            letter-spacing: 0.5px;
+            margin-bottom: 6px;
+            padding-bottom: 4px;
+            border-bottom: 1px solid #1e1e30;
+        }
+        .tl-row {
+            padding: 5px 0;
+            border-bottom: 1px solid #1e1e30;
+        }
+        .tl-row:last-child { border-bottom: none; }
+        .tl-label { color: #c8c8d8; }
+        .tl-target, .tl-actual {
+            font-family: 'Share Tech Mono', monospace;
+            text-align: right;
+        }
+        .tl-target { color: var(--muted); }
+        .tl-actual { color: var(--text); }
+        .tl-actual.delayed { color: #ff6b9d; }
+
+        .end-quote {
+            font-size: 15px;
+            line-height: 1.55;
+            color: #d0d0e8;
+            text-align: center;
+            margin: 18px 0;
+            padding: 14px 16px;
+            border-left: 3px solid var(--neon);
+            background: rgba(0,245,212,0.04);
+        }
+        .hidden-end {
+            display: none;
+            font-size: 13.5px;
+            line-height: 1.65;
+            color: var(--gold);
+            margin: 14px 0;
+            padding: 12px 14px;
+            border: 1px solid var(--gold);
+            background: rgba(201,168,76,0.07);
+        }
+        .hidden-end.show { display: block; }
+
+        .self-eval {
+            margin-top: 22px;
+            background: #141422;
+            border: 1px solid #2a2a45;
+            border-radius: 6px;
+            padding: 18px;
+        }
+        .self-eval h3 { font-size: 14px; margin-bottom: 10px; }
+        .self-eval label {
+            display: block;
+            font-size: 12.5px;
+            margin-bottom: 6px;
+            cursor: pointer;
+            color: #c0c0d0;
+        }
+        .self-eval input[type=checkbox] { margin-right: 7px; }
+        .self-eval textarea {
+            width: 100%;
+            height: 60px;
+            margin-top: 10px;
+            background: #1a1a2e;
+            border: 1px solid #3a3a55;
+            color: var(--text);
+            padding: 8px;
+            font-family: inherit;
+            font-size: 12.5px;
+            resize: none;
+            border-radius: 4px;
+        }
+        .submit-eval { margin-top: 12px; }
+
+        .final-msg {
+            display: none;
+            margin-top: 18px;
+            font-size: 13.5px;
+            line-height: 1.7;
+            color: #c8c8d8;
+            padding: 14px 16px;
+            background: rgba(0,245,212,0.03);
+            border: 1px solid #2a2a45;
+        }
+        .final-msg.show { display: block; }
+
+        .restart-btn {
+            display: block;
+            margin: 24px auto 0;
+            font-family: 'Orbitron', sans-serif;
+            font-size: 12px;
+            padding: 9px 24px;
+            background: transparent;
+            border: 1px solid var(--muted);
+            color: var(--muted);
+            cursor: pointer;
+        }
+        .restart-btn:hover { border-color: var(--text); color: var(--text); }
+    </style>
+</head>
+<body>
+<div id="app">
+    <!-- HUD -->
+    <div id="hud">
+        <div class="hud-name"><span id="hud-name">—</span> <span class="hud-age" id="hud-age">Age 15</span></div>
+        <div class="room-wrap">
+            <div class="room-label">Room</div>
+            <div class="room-bar">
+                <div class="room-fill" id="room-fill" style="width:100%"></div>
+                <span class="room-num" id="room-num">100</span>
+            </div>
+        </div>
+        <div class="markers" id="markers"></div>
+    </div>
+
+    <!-- Title -->
+    <div id="title-screen" class="screen active">
+        <h1>WHY ARE GEN Z<br>NOT GROWING UP</h1>
+        <p class="sub">A structural simulation · Canadian classroom edition</p>
+        <button class="start-btn" onclick="showCharSelect()">BEGIN</button>
+    </div>
+
+    <!-- Character Select -->
+    <div id="char-screen" class="screen">
+        <h2>Choose Your Path</h2>
+        <div class="char-row">
+            <div class="char-card" onclick="selectChar('tyler')">
+                <div class="name">Tyler</div>
+                <div class="age">15 years old</div>
+                <div class="desc">White · average · unmoored. No one ever asked what he wanted.</div>
+            </div>
+            <div class="char-card" onclick="selectChar('wei')">
+                <div class="name">Wei</div>
+                <div class="age">15 years old</div>
+                <div class="desc">Chinese immigrant · high-achieving · compressed. Their dream was never his.</div>
+            </div>
+            <div class="char-card" onclick="selectChar('kaya')">
+                <div class="name">Kaya</div>
+                <div class="age">15 years old</div>
+                <div class="desc">Indigenous · northern Manitoba · already carrying more than her age.</div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Background Story -->
+    <div id="bg-screen" class="screen">
+        <div class="story-box">
+            <h2 id="bg-title">Background</h2>
+            <div class="story-text" id="bg-text"></div>
+            <button class="start-btn begin-btn" onclick="showTargetScreen()">Begin</button>
+        </div>
+    </div>
+
+    <!-- Target Age Setting -->
+    <div id="target-screen" class="screen">
+        <div class="target-box">
+            <h2>Set Your Expected Timeline</h2>
+            <p class="hint">What age did you (or society) expect these milestones to happen? These become the “Target” column at the end.</p>
+            <div class="target-row">
+                <label>High school graduation</label>
+                <input type="number" id="t-hs" value="18" min="16" max="25">
+            </div>
+            <div class="target-row">
+                <label>Post-secondary completion</label>
+                <input type="number" id="t-ps" value="22" min="18" max="30">
+            </div>
+            <div class="target-row">
+                <label>First full-time job</label>
+                <input type="number" id="t-job" value="23" min="18" max="32">
+            </div>
+            <div class="target-row">
+                <label>Move out / independent housing</label>
+                <input type="number" id="t-move" value="24" min="18" max="35">
+            </div>
+            <div class="target-row">
+                <label>Relative stability</label>
+                <input type="number" id="t-stable" value="28" min="22" max="40">
+            </div>
+            <button class="confirm-targets" onclick="confirmTargets()">Confirm & Start</button>
+        </div>
+    </div>
+
+    <!-- Game -->
+    <div id="game-screen" class="screen">
+        <div class="node-box">
+            <div class="node-age" id="node-age">Age 16</div>
+            <div class="node-text" id="node-text"></div>
+        </div>
+        <div class="draw-area" id="draw-area">
+            <div class="draw-prompt" id="draw-prompt">You have room to try something. Draw a card?</div>
+            <div class="type-btns" id="type-btns">
+                <button class="type-btn small" data-type="small" onclick="drawCards('small')">Small (−8)</button>
+                <button class="type-btn medium" data-type="medium" onclick="drawCards('medium')">Medium (−14)</button>
+                <button class="type-btn large" data-type="large" onclick="drawCards('large')">Large (−22)</button>
+                <button class="type-btn boss" data-type="boss" onclick="drawCards('boss')">Boss (−35)</button>
+            </div>
+            <button class="skip-btn" onclick="skipDraw()">Skip · continue without drawing</button>
+        </div>
+        <div class="card-fan" id="card-fan"></div>
+        <div class="card-result" id="card-result">
+            <div class="msg" id="result-msg"></div>
+            <button class="continue-btn" onclick="nextNode()">Continue</button>
+        </div>
+    </div>
+
+    <!-- Ending -->
+    <div id="end-screen" class="screen">
+        <div class="end-box">
+            <h2>Timeline</h2>
+            <div class="timeline" id="timeline"></div>
+            <div class="end-quote" id="end-quote"></div>
+            <div class="hidden-end" id="hidden-end"></div>
+            <div class="self-eval" id="self-eval">
+                <h3>How do you see your path?</h3>
+                <label><input type="checkbox" value="completed"> I completed all the traditional milestones.</label>
+                <label><input type="checkbox" value="independent"> I didn't, but I learned to be independent.</label>
+                <label><input type="checkbox" value="responsibility"> I didn't, but I took responsibility.</label>
+                <label><input type="checkbox" value="family"> I didn't, but I helped my family.</label>
+                <label><input type="checkbox" value="mistakes"> I didn't, but I admitted my mistakes.</label>
+                <label><input type="checkbox" value="waiting"> I'm still waiting.</label>
+                <label><input type="checkbox" value="notyet"> I haven't grown up yet.</label>
+                <label><input type="checkbox" value="dontwant"> I don't want to grow up.</label>
+                <textarea id="define-grow" placeholder='If you could define "growing up" yourself, what would you write?'></textarea>
+                <button class="submit-eval" onclick="submitEval()">Submit</button>
+            </div>
+            <div class="final-msg" id="final-msg">
+                Growing up was never just one thing.<br><br>
+                Buying a house. Getting married. Moving out. These are milestones, but they're not the only path.<br><br>
+                Independence is growing up. Responsibility is growing up. Helping others is growing up. Admitting mistakes is growing up.<br><br>
+                If you're still waiting, it's not your failure.<br><br>
+                Some timelines are blocked by structures. Some timelines were never meant to look the same.<br><br>
+                You don't have to live by someone else's schedule.
+            </div>
+            <button class="restart-btn" onclick="location.reload()">Play again</button>
+        </div>
+    </div>
+</div>
+
+<script>
+    /* ============================================================
+       DATA (same as before – cards & nodes unchanged)
+       ============================================================ */
+    const CHARACTERS = {
+        tyler: {
+            name: 'Tyler',
+            bg: `You're Tyler. Your dad sells building materials. Your mom teaches accounting part-time. They never pushed you. Never asked what you wanted to be.
+
+You said you wanted to take a gap year. They said "Okay, figure it out." You said you wanted to study photography. They said "That's nice, be happy."
+
+When you were fifteen, your dad patted your shoulder and said, "Son, I didn't know what I wanted at your age either. Don't rush."
+
+You couldn't tell if that was comfort or surrender.
+
+You're average. Not failing, not shining. You sit in the back of the classroom, look out the window, and wonder: what do I actually want?
+
+Only one teacher ever asked you that. Mr. Wiskin. He retired the next year.`,
+            nodes: [
+                { age: 16, text: "You pick a few courses. Nothing special. Your dad says \"choose what you like.\" Your mom says \"choose something useful.\"" },
+                { age: 17, text: "You start thinking about college. You look up a few programs. The tuition makes you hesitate." },
+                { age: 18, text: "High school graduation. Average grades. Enough for the local college." },
+                { age: 19, text: "First year of college. You choose \"General Arts\" because \"you'll learn a bit of everything.\"" },
+                { age: 20, text: "You take a job at Tim Hortons. The shifts are fragmented, but at least you have some money." },
+                { age: 21, text: "College graduation. You stand in the crowd and think: now what?" },
+                { age: 22, text: "First full-time contract — admin work. You move out and share a place with two roommates." },
+                { age: 23, text: "The contract ends. You move back into your parents' house." },
+                { age: 24, text: "Retail supervisor. Salary $42,000. You calculate rent and decide to keep living at home." },
+                { age: 25, text: "You sit in your childhood bedroom looking at the high-school yearbook. You remember Mr. Wiskin's question. You still don't know the answer." }
+            ],
+            ending: "You are not unwilling to grow up. You just don't know where to grow.",
+            cards: {
+                small: [
+                    { id:'t_s1', title:'Weekend Photography Workshop', narrative:'You spend a Saturday learning composition. It feels like the first time someone took your interest seriously.', data:'Average Canadian youth spends 2.1 hrs/day on social media vs 0.4 hrs on creative hobbies (Statistics Canada).', effects:['+1 Creative spark'], marker:{type:'good', text:'Creative'}, choice:false },
+                    { id:'t_s2', title:'Open Mic Night', narrative:'You bring a camera, not a guitar. Someone asks to see your shots. You show them.', data:'1 in 3 young Canadians report having no adult mentor outside family.', effects:['Minor confidence'], marker:{type:'good', text:'Seen'}, choice:false },
+                    { id:'t_s3', title:'Library Late Fees', narrative:'You keep renewing books on careers you might want. You never finish them.', data:'Youth unemployment (15-24) in Canada averaged 10.6% in 2024 (StatCan).', effects:['Slight delay'], marker:{type:'bad', text:'Drift'}, choice:false },
+                    { id:'t_s4', title:'Friend Moves Away', narrative:'Your closest friend leaves for university in another province. Group chats go quiet.', data:'Social isolation rates among 18-24 year olds rose 40% post-2019.', effects:['Loneliness +1'], marker:{type:'bad', text:'Alone'}, choice:false },
+                    { id:'t_s5', title:'Part-time Shift Cut', narrative:'Hours drop without warning. Rent still due.', data:'Over 40% of young workers in Canada are in temporary or part-time roles.', effects:['Cash pressure'], marker:{type:'bad', text:'Precarious'}, choice:false },
+                    { id:'t_s6', title:'Old Camera Repair', narrative:'You fix your dad\'s old film camera. It still works. Something about that feels solid.', data:'Intergenerational skill transfer has declined sharply in urban households.', effects:['Quiet pride'], marker:{type:'good', text:'Craft'}, choice:false }
+                ],
+                medium: [
+                    { id:'t_m1', title:'Gap Year Application', narrative:'You almost apply for a photography residency. The deposit is more than you have.', data:'Average cost of a structured gap-year program in Canada: $8,000–$15,000.', effects:['Opportunity missed'], marker:{type:'bad', text:'Hesitation'}, choice:false },
+                    { id:'t_m2', title:'Student Debt Calculation', narrative:'You run the numbers. Even with grants, the loan feels like a second job before you start.', data:'Average Canadian undergraduate debt at graduation: ~$28,000 (2023).', effects:['Debt anxiety'], marker:{type:'bad', text:'Debt weight'}, choice:false },
+                    { id:'t_m3', title:'Mentor Disappears', narrative:'The one teacher who asked what you wanted retires. No one else asks again.', data:'Only 18% of Canadian high-school students report having a career mentor at school.', effects:['Guidance lost'], marker:{type:'bad', text:'Unanchored'}, choice:false },
+                    { id:'t_m4', title:'Shared Apartment', narrative:'You find a place with two roommates. It lasts eight months before someone moves out and rent spikes.', data:'Average rent for a 1-bedroom in Ontario mid-sized cities rose 28% between 2019–2024.', effects:['Housing instability'], marker:{type:'bad', text:'Unstable'}, choice:false },
+                    { id:'t_m5', title:'Portfolio Night', narrative:'You show work at a local gallery open call. One photographer stays late to talk.', data:'Creative industries in Canada employ ~3% of the workforce; entry is highly networked.', effects:['Network +1'], marker:{type:'good', text:'Connected'}, choice:false }
+                ],
+                large: [
+                    { id:'t_l1', title:'Contract Ends Abruptly', narrative:'The admin contract is not renewed. Two weeks\' notice. Your name is already off the email list.', data:'Nearly 1 in 4 Canadian workers under 30 are on temporary contracts (StatCan).', effects:['Job loss','Milestone +1 yr'], marker:{type:'bad', text:'Laid off'}, choice:false },
+                    { id:'t_l2', title:'Parents\' Quiet Disappointment', narrative:'No one says it out loud. The silence at dinner says enough.', data:'Parental financial support remains common into the late 20s for over half of Canadian young adults.', effects:['Emotional weight'], marker:{type:'bad', text:'Shame'}, choice:false },
+                    { id:'t_l3', title:'Photography Side Gig', narrative:'A small wedding job. You almost cover the equipment rental. Almost.', data:'Gig work among 20-29 year olds has increased 35% since 2018.', effects:['Income + minor'], marker:{type:'good', text:'Side hustle'}, choice:false },
+                    { id:'t_l4', title:'Move Back Home', narrative:'Boxes in the childhood bedroom again. The posters are still on the wall.', data:'Over 30% of Canadians aged 20-34 live with parents (2021 Census).', effects:['Independence delayed','Milestone +2 yr'], marker:{type:'bad', text:'Returned'}, choice:false }
+                ],
+                boss: [
+                    { id:'t_b1', title:'Heart Attack (Family)', narrative:'Your father has a myocardial infarction. You become the emergency contact, the driver, the one who cancels plans.', data:'Cardiovascular disease remains a leading cause of premature death in Canadian men 45-64.', effects:['All milestones +4 years'], marker:{type:'bad', text:'Caregiver'}, badBoss:true },
+                    { id:'t_b2', title:'Substance Spiral', narrative:'What started as weekend relief becomes daily. You lose a job over it.', data:'Past-year cannabis use among 20-24: 38%; problematic use rising (CCSA).', effects:['All milestones +5 years'], marker:{type:'bad', text:'Addiction'}, badBoss:true },
+                    { id:'t_b3', title:'HIV Diagnosis', narrative:'A routine test. The waiting room is too bright. Everything after is slower.', data:'New HIV diagnoses in Canada remain concentrated in younger adults; stigma delays care.', effects:['Intimacy +3 yr','All milestones +2 yr'], marker:{type:'bad', text:'HIV+'}, badBoss:true },
+                    { id:'t_b4', title:'Great-Aunt\'s Inheritance', narrative:'She left you a small house and a note: "You always had an eye. Use it." She was a photographer too.', data:'Intergenerational wealth transfers are the strongest predictor of home ownership under 35.', effects:['Housing secured','Creative path open'], marker:{type:'good', text:'Inheritance'}, goodBoss:true },
+                    { id:'t_b5', title:'Senate Appointment Path', narrative:'A community project you half-heartedly joined gets noticed. Someone asks if you\'d consider public service.', data:'Average age of first Senate appointment in Canada is well above 50; under-35s are rare.', effects:['Public path','Milestone boost'], marker:{type:'good', text:'Senate track'}, goodBoss:true, senate:true }
+                ],
+                choice: [
+                    { id:'t_c1', title:'Mom Gets Sick', narrative:'Your mother is diagnosed with something that needs months of support. The hospital is an hour away.', data:'Informal caregiving costs Canadian families billions in lost wages annually.', effects:[], choice:true, options:[
+                            { label:'Go home and help', flag:'duty' },
+                            { label:'Keep living your own life', flag:'self' }
+                        ]},
+                    { id:'t_c2', title:'Dad Loses His Job', narrative:'The building-materials company downsizes. Your father is quiet for weeks.', data:'Job loss after 50 significantly reduces re-employment wages in Canada.', effects:[], choice:true, options:[
+                            { label:'Move back / contribute', flag:'duty' },
+                            { label:'Stay distant', flag:'self' }
+                        ]},
+                    { id:'t_c3', title:'Chance to Buy', narrative:'A relative offers a below-market room in a house they want to keep in the family. You\'d have to commit.', data:'Home ownership rate for under-35s in Ontario has fallen sharply since 2010.', effects:[], choice:true, options:[
+                            { label:'Accept the offer', flag:'duty' },
+                            { label:'Decline — keep options open', flag:'self' }
+                        ]}
+                ]
+            }
+        },
+        wei: {
+            name: 'Wei',
+            bg: `You're Wei. You came from Shanghai when you were seven. Your dad is an engineer. Your mom works at a bank. Twelve hours a day. Weekends too. They never complain. You've never seen them smile.
+
+Your mom says: "We work so hard for you."
+Your dad says: "What did you score?"
+
+When you were fifteen, you got 94. Your mom said, "What about the other 6?" You said, "Highest in class was 96." She said, "Then why aren't you 96?"
+
+You stopped explaining. You studied. No friends. No hobbies. No weekends. One goal: the university they wanted.
+
+But sometimes you wonder: what if what they want isn't what you want?
+
+You've never asked. Because you're afraid the answer is "you don't matter."`,
+            nodes: [
+                { age: 16, text: "You drop the one elective you liked. More time for calculus and chemistry. Your parents nod." },
+                { age: 17, text: "University applications. You list only the programs they circled. You do not list the ones you circled in pencil." },
+                { age: 18, text: "Acceptance letter. The program they wanted. The celebration lasts twenty minutes. Then more study." },
+                { age: 19, text: "First year. You rank near the top. You still feel behind. Sleep is optional." },
+                { age: 20, text: "Summer internship at a firm your uncle knows. You smile in the photo they send relatives." },
+                { age: 21, text: "You consider switching majors. You open the form. You close it. You never mention it." },
+                { age: 22, text: "Graduation. Your parents fly in. They take photos. They ask about the next exam — the professional one." },
+                { age: 23, text: "First full-time role. Long hours. You send money home every month without being asked." },
+                { age: 24, text: "A colleague invites you to a weekend trip. You say you have family obligations. You stay in and study." },
+                { age: 25, text: "You sit at your desk after everyone leaves. The building is quiet. You wonder what you would have chosen if the choice had been yours." }
+            ],
+            ending: "You are not unwilling to grow up. You were never allowed to.",
+            cards: {
+                small: [
+                    { id:'w_s1', title:'Library Until Close', narrative:'You stay until the lights flicker. The security guard knows your name.', data:'East Asian students in Canada report higher academic stress scores than the national average.', effects:['Grades maintained'], marker:{type:'good', text:'Discipline'}, choice:false },
+                    { id:'w_s2', title:'Parent WeChat Update', narrative:'You send the weekly screenshot of grades. The reply is a single sticker.', data:'Immigrant parents often equate academic rank with family success and future security.', effects:['Pressure +1'], marker:{type:'bad', text:'Surveillance'}, choice:false },
+                    { id:'w_s3', title:'Skipped Meal', narrative:'You trade lunch for an extra practice test. The headache is familiar.', data:'Sleep deprivation and disordered eating patterns are elevated among high-achieving immigrant youth.', effects:['Health cost'], marker:{type:'bad', text:'Burnout risk'}, choice:false },
+                    { id:'w_s4', title:'Quiet Friendship', narrative:'Someone in the same program sits with you once. You talk about nothing. It feels dangerous.', data:'Loneliness scores among international and first-generation students are significantly higher.', effects:['Tiny connection'], marker:{type:'good', text:'Contact'}, choice:false },
+                    { id:'w_s5', title:'Scholarship Form', narrative:'You fill it out perfectly. You almost forget to list any extracurriculars — there are none.', data:'Merit scholarships still heavily weight grades over holistic profiles in many Canadian awards.', effects:['Money secured'], marker:{type:'good', text:'Scholarship'}, choice:false },
+                    { id:'w_s6', title:'Comparison Spiral', narrative:'A relative\'s child got into a more prestigious program. The dinner table is quiet.', data:'Social comparison via family networks intensifies achievement pressure in some immigrant communities.', effects:['Self-worth dip'], marker:{type:'bad', text:'Compared'}, choice:false }
+                ],
+                medium: [
+                    { id:'w_m1', title:'Major Lock-In', narrative:'Switching now would mean losing a year and explaining it. You stay.', data:'Program change rates are lower among students whose parents are highly involved in course selection.', effects:['Path fixed'], marker:{type:'bad', text:'Locked'}, choice:false },
+                    { id:'w_m2', title:'Internship via Network', narrative:'Your father\'s colleague makes a call. You get the position. You feel both relieved and erased.', data:'Informal networks account for a large share of early-career placements in professional fields.', effects:['Job secured','Autonomy -'], marker:{type:'good', text:'Placed'}, choice:false },
+                    { id:'w_m3', title:'Mental Health Waitlist', narrative:'You finally book counselling. The wait is four months. You cancel.', data:'Average wait for student mental-health services at Canadian universities often exceeds 3 months.', effects:['Support delayed'], marker:{type:'bad', text:'Unsupported'}, choice:false },
+                    { id:'w_m4', title:'Remittance Increase', narrative:'Your parents mention a relative\'s medical bill. You increase the monthly transfer.', data:'Many first-generation professionals send significant remittances; this reduces personal savings rate.', effects:['Savings reduced'], marker:{type:'bad', text:'Provider'}, choice:false },
+                    { id:'w_m5', title:'Conference Paper', narrative:'Your name is on a poster. Your parents ask if it helps the professional exam.', data:'Research experience is valued in academia but often invisible to family success metrics.', effects:['CV +1'], marker:{type:'good', text:'Published'}, choice:false }
+                ],
+                large: [
+                    { id:'w_l1', title:'Burnout Collapse', narrative:'You miss a week. The doctor writes \"exhaustion.\" Your parents ask about the missed assignments.', data:'Academic burnout prevalence among high-achieving Asian-Canadian students is well documented in campus studies.', effects:['Milestone +2 yr','Health marker'], marker:{type:'bad', text:'Collapsed'}, choice:false },
+                    { id:'w_l2', title:'Offer You Don\'t Want', narrative:'A stable, prestigious role. You accept. You feel nothing.', data:'Underemployment and career mismatch remain common even among high-GPA graduates.', effects:['Income secured','Agency -'], marker:{type:'good', text:'Stable job'}, choice:false },
+                    { id:'w_l3', title:'Family Obligation Trip', narrative:'A relative\'s wedding. You fly back. You lose a promotion cycle.', data:'Familial duty expectations can delay geographic and career mobility for some immigrant children.', effects:['Career pause'], marker:{type:'bad', text:'Duty bound'}, choice:false },
+                    { id:'w_l4', title:'Quiet Resignation Draft', narrative:'You write a resignation letter. You delete it. You write it again. You delete it again.', data:'Many high-performing employees report \"quiet quitting\" or internal resignation when values misalign.', effects:['Internal conflict'], marker:{type:'bad', text:'Trapped'}, choice:false }
+                ],
+                boss: [
+                    { id:'w_b1', title:'Heart Attack (Parent)', narrative:'Your father collapses at work. You become the translator, the decision-maker, the one who stays.', data:'Caregiving responsibilities fall heavily on adult children in many immigrant families.', effects:['All milestones +4 years'], marker:{type:'bad', text:'Caregiver'}, badBoss:true },
+                    { id:'w_b2', title:'Substance as Escape', narrative:'Prescriptions at first. Then more. The grades hold longer than you do.', data:'High-achieving youth show elevated rates of prescription stimulant and anxiety-medication misuse.', effects:['All milestones +5 years'], marker:{type:'bad', text:'Addiction'}, badBoss:true },
+                    { id:'w_b3', title:'HIV Diagnosis', narrative:'You tell no one. The secrecy becomes another performance.', data:'Stigma around HIV remains high in some cultural communities, delaying disclosure and care.', effects:['Intimacy +3 yr','All milestones +2 yr'], marker:{type:'bad', text:'HIV+'}, badBoss:true },
+                    { id:'w_b4', title:'UN Invitation', narrative:'A paper you co-authored on education access is noticed. You are asked to speak. Your parents do not understand the invitation, but they are proud of the stage.', data:'International platforms remain rare for early-career professionals from non-elite networks.', effects:['Global recognition','Agency +'], marker:{type:'good', text:'UN stage'}, goodBoss:true },
+                    { id:'w_b5', title:'Senate Appointment Path', narrative:'Community work you did quietly is noticed by someone who notices such things.', data:'Visible minority representation in the Senate has increased, but pathways remain opaque and slow.', effects:['Public path'], marker:{type:'good', text:'Senate track'}, goodBoss:true, senate:true }
+                ],
+                choice: [
+                    { id:'w_c1', title:'Mother Says Unfilial', narrative:'You mention a different career path once. She says the word that ends the conversation.', data:'Filial piety expectations can make open disagreement feel like betrayal.', effects:[], choice:true, options:[
+                            { label:'Compromise — stay the course', flag:'duty' },
+                            { label:'Hold your ground', flag:'self' }
+                        ]},
+                    { id:'w_c2', title:'Want to Resign', narrative:'The job is killing the part of you that still asks questions. You draft the email.', data:'Career changes after parental investment carry heavy guilt for many first-generation professionals.', effects:[], choice:true, options:[
+                            { label:'Stay — do not waste their sacrifice', flag:'duty' },
+                            { label:'Resign', flag:'self' }
+                        ]},
+                    { id:'w_c3', title:'Father Falls Ill', narrative:'The hospital needs a decision-maker who speaks both languages. You are it.', data:'Language and cultural brokerage often falls to the children of immigrants during health crises.', effects:[], choice:true, options:[
+                            { label:'Take leave and care for him', flag:'duty' },
+                            { label:'Hire help / stay at work', flag:'self' }
+                        ]}
+                ]
+            }
+        },
+        kaya: {
+            name: 'Kaya',
+            bg: `You're Kaya. You live in a northern Manitoba community. Population: less than 800. Your dad left when you were six. Your mom started drinking. Your grandmother raised you. She died when you were twelve.
+
+Your mom disappears for days sometimes. Comes back smelling like alcohol. Eyes red. You learned to cook. To wash clothes. To take care of yourself. You learned not to cry.
+
+When you were fifteen, your teacher said, "Kaya, you're talented. You should go to the city for high school." Your mom said, "Who will take care of me if you leave?" You said nothing.
+
+You know the statistics. Indigenous life expectancy is 10 years shorter. Youth suicide rate is 5 times the national average. You know the numbers. You just don't know if you'll become one.`,
+            nodes: [
+                { age: 16, text: "You stay. You finish the year. You cook for two when your mother is home, for one when she is not." },
+                { age: 17, text: "A guidance counsellor mentions a boarding program in the city. You do not bring the form home." },
+                { age: 18, text: "Graduation in the community hall. Your mother comes. She is sober that day. You both pretend it is normal." },
+                { age: 19, text: "You take a job at the nursing station — admin and translation. The pay is small. The need is not." },
+                { age: 20, text: "A cousin leaves for the city and does not come back. You wonder what that feels like." },
+                { age: 21, text: "You start evening courses online. The connection drops twice a week. You keep going." },
+                { age: 22, text: "Your mother is hospitalized after a fall. You take unpaid leave. The bills wait." },
+                { age: 23, text: "A language program asks if you will help teach. You say yes. It is the first time someone asks for your knowledge, not your labour." },
+                { age: 24, text: "You are offered a full-time role in the city. You calculate the cost of leaving versus the cost of staying." },
+                { age: 25, text: "You stand at the edge of the lake your grandmother loved. The water is the same. You are not sure you are." }
+            ],
+            ending: "You are not failing to grow up. You grew up too early.",
+            cards: {
+                small: [
+                    { id:'k_s1', title:'Community Feast', narrative:'You help cook. Elders thank you by name. For a few hours the weight is shared.', data:'Cultural continuity is a documented protective factor for Indigenous youth mental health.', effects:['Belonging +1'], marker:{type:'good', text:'Rooted'}, choice:false },
+                    { id:'k_s2', title:'Mother Disappears Again', narrative:'Three days. You check the usual places. You do not call the police. You already know the pattern.', data:'Children of parents with substance-use disorders show elevated rates of parentification.', effects:['Hypervigilance'], marker:{type:'bad', text:'Parentified'}, choice:false },
+                    { id:'k_s3', title:'School Laptop Loan', narrative:'The band office finds a refurbished laptop. You can finally finish assignments without the library line.', data:'Digital access gaps remain significant in many northern and remote First Nations communities.', effects:['Education access'], marker:{type:'good', text:'Connected'}, choice:false },
+                    { id:'k_s4', title:'Suicide Cluster News', narrative:'Another community, not yours. The numbers are read on the radio. You turn it off.', data:'Indigenous youth suicide rates remain 5–7 times the national average in some regions.', effects:['Grief weight'], marker:{type:'bad', text:'Grief'}, choice:false },
+                    { id:'k_s5', title:'Language Night', narrative:'An elder teaches words your grandmother used. You write them down like they might disappear.', data:'Fewer than 1 in 5 Indigenous people in Canada can converse in an Indigenous language (2021).', effects:['Cultural thread'], marker:{type:'good', text:'Language'}, choice:false },
+                    { id:'k_s6', title:'Missed Opportunity Bus', narrative:'The try-out for a city program is tomorrow. The bus does not run that day.', data:'Transportation barriers are a documented obstacle to education and employment in remote communities.', effects:['Chance lost'], marker:{type:'bad', text:'Isolated'}, choice:false }
+                ],
+                medium: [
+                    { id:'k_m1', title:'Boarding School Offer', narrative:'A place opens. Your mother asks who will handle the house. You decline without saying the real reason.', data:'Many Indigenous students who leave for education report guilt and cultural dislocation.', effects:['Education delayed'], marker:{type:'bad', text:'Stayed'}, choice:false },
+                    { id:'k_m2', title:'Nursing Station Overtime', narrative:'You stay late translating for an elder. No extra pay. You do it anyway.', data:'Indigenous health workers often perform unpaid cultural and linguistic labour.', effects:['Community trust'], marker:{type:'good', text:'Trusted'}, choice:false },
+                    { id:'k_m3', title:'Housing Waitlist', narrative:'You put your name down for a unit. The list is years long.', data:'On-reserve and northern housing shortages are chronic; overcrowding rates remain high.', effects:['Housing blocked'], marker:{type:'bad', text:'Waitlist'}, choice:false },
+                    { id:'k_m4', title:'Online Certificate', narrative:'You finish a community-health certificate. The internet held. You print the PDF like it is parchment.', data:'Distance education completion rates improve when local support and bandwidth exist.', effects:['Credential +1'], marker:{type:'good', text:'Certified'}, choice:false },
+                    { id:'k_m5', title:'Cousin\'s Crisis', narrative:'You drive through the night. You are the reliable one. You always are.', data:'Kinship care and informal support networks carry significant unpaid labour in many Indigenous families.', effects:['Exhaustion'], marker:{type:'bad', text:'Carrier'}, choice:false }
+                ],
+                large: [
+                    { id:'k_l1', title:'Mother\'s Hospitalization', narrative:'Longer this time. You rearrange everything. The job understands — once.', data:'Family health crises disproportionately interrupt education and employment for Indigenous women.', effects:['Milestone +2 yr'], marker:{type:'bad', text:'Caregiver'}, choice:false },
+                    { id:'k_l2', title:'City Job Offer', narrative:'Full-time. Benefits. You would have to leave the lake, the language table, the people who know your name.', data:'Out-migration of skilled Indigenous youth is a documented tension between opportunity and belonging.', effects:['Income path open'], marker:{type:'good', text:'Offer'}, choice:false },
+                    { id:'k_l3', title:'Funding Cut', narrative:'The language program loses its grant. You keep teaching for free until the money runs out.', data:'Indigenous language revitalization programs remain underfunded relative to need.', effects:['Program loss'], marker:{type:'bad', text:'Defunded'}, choice:false },
+                    { id:'k_l4', title:'Land-Based Teaching', narrative:'You take youth onto the land. For the first time your knowledge is the curriculum.', data:'Land-based education shows positive outcomes for identity and wellness among Indigenous learners.', effects:['Purpose +'], marker:{type:'good', text:'Teacher'}, choice:false }
+                ],
+                boss: [
+                    { id:'k_b1', title:'Heart Attack (Family)', narrative:'An uncle. Then the weight of the family shifts onto fewer shoulders. Yours are already full.', data:'Cardiovascular disease and diabetes rates are elevated in many First Nations communities.', effects:['All milestones +4 years'], marker:{type:'bad', text:'Caregiver'}, badBoss:true },
+                    { id:'k_b2', title:'Substance Spiral', narrative:'You understand the escape. You watch it take people you love. One winter it almost takes you.', data:'Substance-use harms are intertwined with intergenerational trauma and limited local treatment access.', effects:['All milestones +5 years'], marker:{type:'bad', text:'Addiction'}, badBoss:true },
+                    { id:'k_b3', title:'HIV Diagnosis', narrative:'Rates are higher. Services are farther. You learn both facts the hard way.', data:'HIV incidence remains disproportionately high in some Indigenous populations; access to care is uneven.', effects:['Intimacy +3 yr','All milestones +2 yr'], marker:{type:'bad', text:'HIV+'}, badBoss:true },
+                    { id:'k_b4', title:'Language Project Goes National', narrative:'A documentary crew comes. Then a national broadcaster. Your grandmother\'s words are suddenly on screens across the country.', data:'Visibility of Indigenous language revitalization has grown, yet resources still lag behind attention.', effects:['National recognition','Purpose secured'], marker:{type:'good', text:'National story'}, goodBoss:true },
+                    { id:'k_b5', title:'Senate Appointment Path', narrative:'Someone in Ottawa has been watching community-led work. Your name is mentioned in a room you have never entered.', data:'Indigenous representation in the Senate has increased; lived experience is increasingly valued.', effects:['Public path'], marker:{type:'good', text:'Senate track'}, goodBoss:true, senate:true }
+                ],
+                choice: [
+                    { id:'k_c1', title:'Mother Falls Ill', narrative:'The nursing station says she needs longer care than they can give. Someone has to go with her to the city.', data:'Medical travel and accompaniment are common unpaid burdens for northern families.', effects:[], choice:true, options:[
+                            { label:'Go with her and stay', flag:'duty' },
+                            { label:'Arrange help / stay for work', flag:'self' }
+                        ]},
+                    { id:'k_c2', title:'Mother Drunk Again', narrative:'She calls at 2 a.m. Slurred. Crying. You have answered a hundred times.', data:'Repeated crisis response contributes to secondary trauma and burnout in family caregivers.', effects:[], choice:true, options:[
+                            { label:'Answer and go get her', flag:'duty' },
+                            { label:'Let it ring', flag:'self' }
+                        ]},
+                    { id:'k_c3', title:'Community Needs You', narrative:'A new program needs a local coordinator. It would mean turning down the city offer.', data:'Community retention of skilled members is a constant tension in small northern communities.', effects:[], choice:true, options:[
+                            { label:'Stay and take the role', flag:'duty' },
+                            { label:'Leave for the city', flag:'self' }
+                        ]}
+                ]
+            }
+        }
+    };
+
+    /* ============================================================
+       STATE
+       ============================================================ */
+    let state = {
+        char: null,
+        age: 15,
+        room: 100,
+        nodeIndex: 0,
+        markers: [],
+        goodCount: 0,
+        milestones: {
+            highSchool:   { target: 18, actual: null },
+            postSecondary:{ target: 22, actual: null },
+            firstJob:     { target: 23, actual: null },
+            moveOut:      { target: 24, actual: null },
+            stable:       { target: 28, actual: null }
+        },
+        delay: 0,
+        choiceFlags: [null, null, null],
+        choiceDrawn: 0,
+        usedCardIds: new Set(),
+        drawing: false
+    };
+
+    /* ============================================================
+       UI HELPERS
+       ============================================================ */
+    function showScreen(id) {
+        document.querySelectorAll('.screen').forEach(s => s.classList.remove('active'));
+        document.getElementById(id).classList.add('active');
+    }
+
+    function showCharSelect() {
+        showScreen('char-screen');
+    }
+
+    function selectChar(key) {
+        state.char = key;
+        const c = CHARACTERS[key];
+        document.getElementById('bg-title').textContent = c.name + ' — Before 15';
+        document.getElementById('bg-text').textContent = c.bg;
+        showScreen('bg-screen');
+    }
+
+    function showTargetScreen() {
+        showScreen('target-screen');
+    }
+
+    function confirmTargets() {
+        state.milestones.highSchool.target    = parseInt(document.getElementById('t-hs').value) || 18;
+        state.milestones.postSecondary.target = parseInt(document.getElementById('t-ps').value) || 22;
+        state.milestones.firstJob.target      = parseInt(document.getElementById('t-job').value) || 23;
+        state.milestones.moveOut.target       = parseInt(document.getElementById('t-move').value) || 24;
+        state.milestones.stable.target        = parseInt(document.getElementById('t-stable').value) || 28;
+        startGame();
+    }
+
+    function startGame() {
+        document.getElementById('hud').classList.add('active');
+        updateHUD();
+        showScreen('game-screen');
+        showNode();
+    }
+
+    function updateHUD() {
+        const c = CHARACTERS[state.char];
+        document.getElementById('hud-name').textContent = c.name;
+        document.getElementById('hud-age').textContent = 'Age ' + state.age;
+        const fill = document.getElementById('room-fill');
+        const num = document.getElementById('room-num');
+        fill.style.width = Math.max(0, state.room) + '%';
+        num.textContent = Math.max(0, Math.round(state.room));
+        if (state.room < 40) fill.classList.add('low');
+        else fill.classList.remove('low');
+
+        const mEl = document.getElementById('markers');
+        mEl.innerHTML = '';
+        state.markers.forEach(m => {
+            const span = document.createElement('span');
+            span.className = 'marker ' + m.type;
+            span.textContent = (m.type === 'good' ? '◆ ' : '◇ ') + m.text;
+            mEl.appendChild(span);
+        });
+        if (state.markers.length >= 5) document.body.classList.add('vignette');
+        else document.body.classList.remove('vignette');
+    }
+
+    function showNode() {
+        const c = CHARACTERS[state.char];
+        if (state.nodeIndex >= c.nodes.length) {
+            endGame();
+            return;
+        }
+        const node = c.nodes[state.nodeIndex];
+        state.age = node.age + state.delay;
+        document.getElementById('node-age').textContent = 'Age ' + state.age;
+        document.getElementById('node-text').textContent = node.text;
+
+        if (state.nodeIndex === 2 && !state.milestones.highSchool.actual)
+            state.milestones.highSchool.actual = state.age;
+        if (state.nodeIndex === 5 && !state.milestones.postSecondary.actual)
+            state.milestones.postSecondary.actual = state.age;
+        if (state.nodeIndex === 6 && !state.milestones.firstJob.actual)
+            state.milestones.firstJob.actual = state.age;
+        if (state.nodeIndex === 7 && !state.milestones.moveOut.actual)
+            state.milestones.moveOut.actual = state.age;
+
+        updateHUD();
+        document.getElementById('draw-area').style.display = 'flex';
+        document.getElementById('card-fan').classList.remove('active');
+        document.getElementById('card-fan').innerHTML = '';
+        document.getElementById('card-result').classList.remove('active');
+        state.drawing = false;
+
+        const costs = { small: 8, medium: 14, large: 22, boss: 35 };
+        document.querySelectorAll('.type-btn').forEach(btn => {
+            const t = btn.dataset.type;
+            btn.disabled = state.room < costs[t];
+        });
+        if (state.room < 8) {
+            document.getElementById('draw-prompt').textContent = 'No room left to draw. The path is narrowing.';
+        } else {
+            document.getElementById('draw-prompt').textContent = 'You have room to try something. Draw a card?';
+        }
+    }
+
+    function skipDraw() {
+        state.nodeIndex++;
+        showNode();
+    }
+
+    function drawCards(type) {
+        if (state.drawing) return;
+        const costs = { small: 8, medium: 14, large: 22, boss: 35 };
+        if (state.room < costs[type]) return;
+        state.drawing = true;
+        state.room -= costs[type];
+        updateHUD();
+
+        document.getElementById('draw-area').style.display = 'none';
+
+        const pool = CHARACTERS[state.char].cards[type].filter(c => !state.usedCardIds.has(c.id));
+        let cards = [];
+        if (state.choiceDrawn < 3 && Math.random() < 0.35 && type !== 'boss') {
+            const choicePool = CHARACTERS[state.char].cards.choice.filter(c => !state.usedCardIds.has(c.id));
+            if (choicePool.length) {
+                cards.push(choicePool[Math.floor(Math.random() * choicePool.length)]);
+            }
+        }
+        const shuffled = pool.sort(() => Math.random() - 0.5);
+        while (cards.length < 3 && shuffled.length) {
+            cards.push(shuffled.pop());
+        }
+        while (cards.length < 3) {
+            const fallback = CHARACTERS[state.char].cards[type];
+            cards.push(fallback[Math.floor(Math.random() * fallback.length)]);
+        }
+
+        const fan = document.getElementById('card-fan');
+        fan.innerHTML = '';
+        fan.classList.add('active');
+
+        cards.forEach((card, i) => {
+            const el = document.createElement('div');
+            el.className = 'card';
+            el.dataset.idx = i;
+            el.innerHTML = `
+      <div class="card-inner">
+        <div class="card-face card-back">
+          <div class="corners"><span>◈</span><span>◈</span><span>◈</span><span>◈</span></div>
+          <div class="badge"><span>DRAW<br>A<br>CARD</span></div>
+          <div class="label">${type}</div>
+        </div>
+        <div class="card-face card-front ${card.badBoss ? 'bad-boss' : ''} ${card.goodBoss ? 'good-boss' : ''}">
+          <div class="type-tag">${type}${card.badBoss ? ' · BOSS' : card.goodBoss ? ' · BOSS' : ''}</div>
+          <div class="title">${card.title}</div>
+          <div class="narrative">${card.narrative}</div>
+          <div class="data">${card.data || ''}</div>
+          <div class="effects"><ul>${(card.effects || []).map(e => `<li>${e}</li>`).join('')}</ul></div>
+          ${card.marker ? `<span class="chip ${card.marker.type}">${card.marker.text}</span>` : ''}
+          ${card.choice ? `<div class="choice-btns" id="choice-btns-${i}"></div>` : ''}
+        </div>
+      </div>`;
+            el.addEventListener('click', () => selectCard(el, card, cards));
+            fan.appendChild(el);
+        });
+    }
+
+    function selectCard(el, card, allCards) {
+        if (el.classList.contains('flipped') || el.classList.contains('greyed')) return;
+
+        const fan = document.getElementById('card-fan');
+        Array.from(fan.children).forEach(c => {
+            if (c === el) c.classList.add('flipped');
+            else c.classList.add('greyed');
+        });
+
+        state.usedCardIds.add(card.id);
+
+        if (card.choice) {
+            const btns = el.querySelector('.choice-btns');
+            card.options.forEach(opt => {
+                const b = document.createElement('button');
+                b.textContent = opt.label;
+                b.onclick = (e) => {
+                    e.stopPropagation();
+                    const idx = state.choiceDrawn;
+                    state.choiceFlags[idx] = opt.flag;
+                    state.choiceDrawn++;
+                    btns.innerHTML = `<span style="color:var(--neon);font-size:11px">Chose: ${opt.label}</span>`;
+                    applyCard(card);
+                    showResult(card);
+                };
+                btns.appendChild(b);
+            });
+        } else {
+            applyCard(card);
+            showResult(card);
+        }
+    }
+
+    function applyCard(card) {
+        if (card.marker) {
+            state.markers.push(card.marker);
+            if (card.marker.type === 'good') state.goodCount++;
+        }
+        (card.effects || []).forEach(e => {
+            if (e.toLowerCase().includes('all milestones +4')) state.delay += 4;
+            else if (e.toLowerCase().includes('all milestones +5')) state.delay += 5;
+            else if (e.toLowerCase().includes('all milestones +2')) state.delay += 2;
+            else {
+                const m = e.match(/\+(\d+)\s*yr/i);
+                if (m) state.delay += parseInt(m[1]);
+            }
+        });
+        updateHUD();
+    }
+
+    function showResult(card) {
+        const res = document.getElementById('card-result');
+        const msg = document.getElementById('result-msg');
+        if (card.choice) msg.textContent = 'Choice recorded. The weight of it stays with you.';
+        else if (card.badBoss) msg.textContent = 'A heavy card. The timeline shifts.';
+        else if (card.goodBoss) msg.textContent = 'A rare opening. Something changes.';
+        else msg.textContent = 'Card resolved. Room spent.';
+        res.classList.add('active');
+    }
+
+    function nextNode() {
+        state.nodeIndex++;
+        showNode();
+    }
+
+    function endGame() {
+        if (!state.milestones.stable.actual)
+            state.milestones.stable.actual = state.age + 2 + Math.floor(state.delay / 2);
+
+        document.getElementById('hud').classList.remove('active');
+        showScreen('end-screen');
+
+        const tl = document.getElementById('timeline');
+        const labels = {
+            highSchool: 'High school graduation',
+            postSecondary: 'Post-secondary completion',
+            firstJob: 'First full-time job',
+            moveOut: 'Move out / independent housing',
+            stable: 'Relative stability'
+        };
+        tl.innerHTML = `
+    <h3>Target age → Actual age</h3>
+    <div class="tl-header">
+      <span></span>
+      <span style="text-align:right">Target</span>
+      <span style="text-align:right">Actual</span>
+    </div>`;
+        Object.keys(state.milestones).forEach(k => {
+            const m = state.milestones[k];
+            const actual = m.actual || (m.target + state.delay);
+            const delayed = actual > m.target;
+            tl.innerHTML += `
+      <div class="tl-row">
+        <span class="tl-label">${labels[k]}</span>
+        <span class="tl-target">${m.target}</span>
+        <span class="tl-actual ${delayed ? 'delayed' : ''}">${actual}</span>
+      </div>`;
+        });
+
+        document.getElementById('end-quote').textContent = CHARACTERS[state.char].ending;
+
+        const flags = state.choiceFlags.filter(f => f !== null);
+        let hidden = false;
+        if (state.char === 'tyler' && flags.filter(f => f === 'duty').length >= 2) hidden = true;
+        if (state.char === 'wei' && flags.filter(f => f === 'self').length >= 2) hidden = true;
+        if (state.char === 'kaya' && flags.filter(f => f === 'duty').length >= 2) hidden = true;
+
+        if (hidden) {
+            const he = document.getElementById('hidden-end');
+            he.textContent = `But you did one thing. When your mom got sick, you went home. When your dad lost his job, you stayed. None of this is on anyone's milestone list. No one gives you a diploma for it. But you know you grew up. Another kind of growing up.`;
+            he.classList.add('show');
+        }
+    }
+
+    function submitEval() {
+        document.getElementById('final-msg').classList.add('show');
+        document.getElementById('self-eval').style.opacity = '0.5';
+        document.getElementById('self-eval').style.pointerEvents = 'none';
+    }
+</script>
+</body>
+</html>
