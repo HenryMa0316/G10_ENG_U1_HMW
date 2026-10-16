@@ -1,0 +1,1186 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<title>Life Simulator — Early Draft</title>
+<style>
+  body {
+    margin: 0;
+    background: #f5f2ec;
+    color: #2a2a2a;
+    font-family: "Georgia", "Times New Roman", serif;
+    font-size: 17px;
+    line-height: 2;
+    min-height: 100vh;
+    display: flex;
+    justify-content: center;
+    padding: 50px 20px;
+  }
+  #game {
+    max-width: 600px;
+    width: 100%;
+  }
+  .text {
+    margin-bottom: 26px;
+    white-space: pre-wrap;
+  }
+  .text p {
+    margin-bottom: 14px;
+  }
+  .money {
+    position: fixed;
+    top: 16px;
+    right: 20px;
+    font-size: 13px;
+    color: #999;
+    font-family: "Georgia", serif;
+  }
+  .choices {
+    margin-top: 10px;
+  }
+  .choice {
+    display: block;
+    width: 100%;
+    text-align: left;
+    background: none;
+    border: none;
+    border-left: 2px solid #ccc;
+    padding: 10px 16px;
+    margin-bottom: 10px;
+    font-family: inherit;
+    font-size: 16px;
+    line-height: 1.8;
+    color: #2a2a2a;
+    cursor: pointer;
+  }
+  .choice:hover {
+    border-left-color: #2a2a2a;
+    background: #ece8e0;
+  }
+  .choice .inner {
+    color: #999;
+    font-size: 14px;
+    display: block;
+    margin-top: 2px;
+  }
+  .btn {
+    display: inline-block;
+    background: none;
+    border: 1px solid #bbb;
+    padding: 8px 22px;
+    font-family: inherit;
+    font-size: 15px;
+    color: #2a2a2a;
+    cursor: pointer;
+    margin-top: 8px;
+  }
+  .btn:hover {
+    border-color: #2a2a2a;
+  }
+  .btn.small {
+    font-size: 12px;
+    padding: 4px 12px;
+    color: #aaa;
+    border-color: #ddd;
+  }
+  .btn.small:hover {
+    color: #2a2a2a;
+    border-color: #999;
+  }
+  .recall {
+    margin-top: 20px;
+    border-top: 1px solid #ddd;
+    padding-top: 20px;
+  }
+  .recall-item {
+    margin-bottom: 10px;
+    color: #555;
+    font-size: 15px;
+  }
+  .recall-item .age {
+    color: #aaa;
+    margin-right: 10px;
+    font-size: 13px;
+  }
+  .silent {
+    color: #aaa;
+    font-size: 14px;
+    margin-top: 30px;
+  }
+</style>
+</head>
+<body>
+
+<div class="money" id="moneyBar"></div>
+<div id="game"></div>
+
+<script>
+/* Early draft — text-based life simulator.
+   Theme: why Gen Z are not growing up.
+   Tone: plain, restrained, no judgement. */
+
+const G = {
+  age: 0,
+  money: 0,
+  time: 5,
+  history: [],
+  stage: 0,
+  talent: "",
+  gameEl: null,
+  moneyEl: null,
+};
+
+function rand(min, max) {
+  return Math.floor(Math.random() * (max - min + 1)) + min;
+}
+function pick(arr) {
+  return arr[Math.floor(Math.random() * arr.length)];
+}
+function clear() {
+  G.gameEl.innerHTML = "";
+}
+function showMoney() {
+  G.moneyEl.textContent = (G.money < 0 ? "-$" + Math.abs(G.money) : "$" + G.money);
+}
+function addMoney(n) {
+  G.money += n;
+  showMoney();
+}
+function addHistory(text) {
+  G.history.push({ age: G.age, text: text });
+}
+function para(text) {
+  const p = document.createElement("p");
+  p.textContent = text;
+  return p;
+}
+function render(lines, callback) {
+  clear();
+  const wrap = document.createElement("div");
+  wrap.className = "text";
+  lines.forEach(function (line) {
+    if (line === "") {
+      wrap.appendChild(document.createElement("br"));
+    } else {
+      wrap.appendChild(para(line));
+    }
+  });
+  G.gameEl.appendChild(wrap);
+  if (callback) {
+    const btn = document.createElement("button");
+    btn.className = "btn";
+    btn.textContent = "Continue";
+    btn.onclick = callback;
+    G.gameEl.appendChild(btn);
+  }
+}
+function renderChoices(lines, choices) {
+  clear();
+  const wrap = document.createElement("div");
+  wrap.className = "text";
+  lines.forEach(function (line) {
+    if (line === "") {
+      wrap.appendChild(document.createElement("br"));
+    } else {
+      wrap.appendChild(para(line));
+    }
+  });
+  G.gameEl.appendChild(wrap);
+
+  const box = document.createElement("div");
+  box.className = "choices";
+  choices.forEach(function (c) {
+    const btn = document.createElement("button");
+    btn.className = "choice";
+    btn.innerHTML = c.text + (c.inner ? '<span class="inner">' + c.inner + '</span>' : '');
+    btn.onclick = function () {
+      if (c.effect) c.effect();
+      if (c.history) addHistory(c.history);
+      c.next();
+    };
+    box.appendChild(btn);
+  });
+  G.gameEl.appendChild(box);
+
+  if (G.stage > 0 && G.time > 0) {
+    const back = document.createElement("button");
+    back.className = "btn small";
+    back.textContent = "Go back to the start of this stage (costs 1 year)";
+    back.style.marginTop = "18px";
+    back.onclick = function () {
+      if (G.time <= 0) return;
+      G.time -= 1;
+      goStage(G.stage);
+    };
+    G.gameEl.appendChild(back);
+  }
+}
+
+/* ---------- opening ---------- */
+
+const FAMILIES = [
+  { name: "wealthy", money: [80, 200], desc: "Your family runs a business. Money is not a problem." },
+  { name: "middle class", money: [30, 80], desc: "Both parents work. Things are okay." },
+  { name: "ordinary", money: [5, 25], desc: "Not poor. Not comfortable." },
+  { name: "poor", money: [-5, 5], desc: "Your parents take odd jobs. Some months are short." },
+  { name: "very poor", money: [-30, -5], desc: "Your family owes money. You learned early what 'not enough' means." },
+];
+const PARENTS = [
+  "Your parents get along.",
+  "Your parents don't talk much.",
+  "Your parents divorced.",
+  "Your father is often away.",
+  "Your mother raises you alone.",
+];
+const PLACES = [
+  "You grow up in a small town.",
+  "You grow up in a mid-sized city.",
+  "You grow up in a provincial capital.",
+  "You grow up in a village.",
+  "You grow up in an apartment block on the edge of the city.",
+];
+const SIBLINGS = [
+  "You are an only child.",
+  "You have a younger brother.",
+  "You have a younger sister.",
+  "You have an older brother.",
+  "You have an older sister.",
+];
+const TALENTS = ["drawing", "math", "talking", "running", "writing", "singing", "remembering things", "fixing things"];
+
+function startGame() {
+  const fam = pick(FAMILIES);
+  const parents = pick(PARENTS);
+  const place = pick(PLACES);
+  const sib = pick(SIBLINGS);
+
+  G.money = rand(fam.money[0], fam.money[1]) * 1000;
+  G.age = 0;
+  G.time = 5;
+  G.history = [];
+  G.stage = 0;
+  G.talent = "";
+  G.fam = fam;
+  G.parents = parents;
+  G.place = place;
+  G.sib = sib;
+
+  showMoney();
+  renderTalentChoice();
+}
+
+function renderTalentChoice() {
+  clear();
+  const wrap = document.createElement("div");
+  wrap.className = "text";
+  [
+    "You are born.",
+    "",
+    G.place,
+    G.parents,
+    G.sib,
+    G.fam.desc,
+    "",
+    "The money you start with: " + (G.money < 0 ? "-$" + Math.abs(G.money) : "$" + G.money) + ".",
+    "",
+    "This is what you were given. You did not choose it.",
+    "",
+    "Now you are five.",
+    "",
+    "Someone says you are good at something. You are not sure what.",
+    "",
+    "You think you are good at —",
+  ].forEach(function (line) {
+    if (line === "") wrap.appendChild(document.createElement("br"));
+    else wrap.appendChild(para(line));
+  });
+  G.gameEl.appendChild(wrap);
+
+  const box = document.createElement("div");
+  box.className = "choices";
+  const shuffled = TALENTS.slice().sort(function () { return Math.random() - 0.5; });
+  shuffled.slice(0, 3).forEach(function (t) {
+    const btn = document.createElement("button");
+    btn.className = "choice";
+    btn.textContent = t;
+    btn.onclick = function () {
+      G.talent = t;
+      addHistory("You believed you were good at " + t + ".");
+      stage1();
+    };
+    box.appendChild(btn);
+  });
+  G.gameEl.appendChild(box);
+}
+
+/* ---------- stage 1: childhood ---------- */
+
+function stage1() {
+  G.stage = 1;
+  G.age = 8;
+  addHistory("You were eight.");
+
+  const talentLine = {
+    drawing: "You drew something. Your teacher stood behind you for a long time. She said you had something.",
+    math: "You counted faster than anyone in class. The teacher said you had a good head.",
+    talking: "You talked a lot. Adults said you had a way with words.",
+    running: "You ran faster than the others. The gym teacher looked twice.",
+    writing: "Your essay was read out loud to the class. You sat there, face warm.",
+    singing: "You sang. Someone said you had a voice.",
+    remembering: "You remembered things. Two reads and it stayed.",
+    fixing: "You took apart a broken radio and put it back. Your father said you had steady hands.",
+  }[G.talent] || "Someone said you had something.";
+
+  renderChoices([
+    "You are eight.",
+    "",
+    talentLine,
+    "",
+    "The teacher asks the class what they want to be when they grow up.",
+    "",
+    "You stand up.",
+    "",
+    "You say —",
+  ], [
+    {
+      text: "I want to keep " + G.talent + ".",
+      inner: "You mean it.",
+      history: "You said you wanted to keep " + G.talent + ".",
+      next: function () {
+        render([
+          "The teacher smiled.",
+          "",
+          "She said that was wonderful.",
+          "",
+          "You nodded.",
+          "",
+          "You did not know yet that 'wonderful' is a word adults use when they don't know what else to say.",
+        ], stage2);
+      }
+    },
+    {
+      text: "I don't know.",
+      inner: "You really don't.",
+      history: "You said you didn't know.",
+      next: function () {
+        render([
+          "The teacher told you to sit down.",
+          "",
+          "She didn't ask again.",
+          "",
+          "The kid next to you said he wanted to be a doctor. The teacher praised him.",
+          "",
+          "You looked at your hands.",
+        ], stage2);
+      }
+    },
+    {
+      text: "I want to make money.",
+      inner: "You heard an adult say this once.",
+      history: "You said you wanted to make money.",
+      next: function () {
+        render([
+          "The class laughed.",
+          "",
+          "The teacher laughed too. She said, 'Well, at least you're honest.'",
+          "",
+          "You didn't know if that was a compliment.",
+          "",
+          "You laughed with them.",
+        ], stage2);
+      }
+    }
+  ]);
+}
+
+/* ---------- stage 2: teens ---------- */
+
+function stage2() {
+  G.stage = 2;
+  G.age = 13;
+  addHistory("You were thirteen.");
+
+  renderChoices([
+    "You are thirteen.",
+    "",
+    "Marks start to separate people.",
+    "",
+    "You are in the middle.",
+    "",
+    "The teacher remembers the names at the top. And the names at the bottom.",
+    "",
+    "The middle, she doesn't call on.",
+    "",
+    "You —",
+  ], [
+    {
+      text: "Try to move up.",
+      inner: "You start staying up late.",
+      history: "You started staying up late to study.",
+      next: function () {
+        render([
+          "You studied for half a year.",
+          "",
+          "Your marks went up a little.",
+          "",
+          "From the middle, to the upper middle.",
+          "",
+          "The teacher still didn't call your name.",
+          "",
+          "But you knew you were better than before.",
+          "",
+          "That feeling carried you for a long time.",
+        ], stage3);
+      }
+    },
+    {
+      text: "Stop trying.",
+      inner: "You start looking at other things.",
+      history: "You stopped chasing marks.",
+      next: function () {
+        render([
+          "You started reading novels, playing ball, playing games.",
+          "",
+          "Your marks dropped a little.",
+          "",
+          "Your parents said something a few times.",
+          "",
+          "Then they stopped.",
+          "",
+          "You didn't know if they had given up, or just gotten tired of saying it.",
+        ], stage3);
+      }
+    },
+    {
+      text: "Keep " + G.talent + ".",
+      inner: "You feel this is who you are.",
+      history: "You kept doing " + G.talent + ".",
+      next: function () {
+        render([
+          "You spent more time on " + G.talent + ".",
+          "",
+          "You felt you were getting better.",
+          "",
+          "Someone said you were good.",
+          "",
+          "Someone else said, can you make a living from that?",
+          "",
+          "You didn't believe them then.",
+        ], stage3);
+      }
+    }
+  ]);
+}
+
+/* ---------- stage 3: leaving school ---------- */
+
+function stage3() {
+  G.stage = 3;
+  G.age = 18;
+  addHistory("You were eighteen. You finished school.");
+
+  renderChoices([
+    "You are eighteen.",
+    "",
+    "You finish school.",
+    "",
+    "The day you walk out, it is hot.",
+    "",
+    "Your parents are waiting at the gate.",
+    "",
+    "You think, finally, it's over.",
+    "",
+    "You will learn later that it was only the beginning.",
+  ], [
+    {
+      text: "Wait for results.",
+      inner: "There is nothing else you can do.",
+      history: "You waited for your results.",
+      next: function () {
+        render([
+          "The results came.",
+          "",
+          "Not good. Not bad.",
+          "",
+          "Enough for a mid-tier university.",
+          "",
+          "Your parents said nothing.",
+          "",
+          "You said nothing either.",
+          "",
+          "You packed your things and went.",
+        ], stage4);
+      }
+    },
+    {
+      text: "Repeat a year.",
+      inner: "You want to try again.",
+      history: "You repeated a year.",
+      next: function () {
+        addMoney(-5000);
+        render([
+          "You repeated a year.",
+          "",
+          "It cost your family some money.",
+          "",
+          "The second year, your results were a little better.",
+          "",
+          "Only a little.",
+          "",
+          "You got into a better university.",
+          "",
+          "You weren't especially happy.",
+          "",
+          "You just felt that the year had passed.",
+        ], stage4);
+      }
+    },
+    {
+      text: "Don't study. Go work.",
+      inner: "You feel school isn't for you.",
+      history: "You stopped studying and went to work.",
+      next: function () {
+        addMoney(8000);
+        render([
+          "You went to the city.",
+          "",
+          "Your first job was in a factory.",
+          "",
+          "Four thousand a month.",
+          "",
+          "You worked half a year.",
+          "",
+          "You saved a little.",
+          "",
+          "You also learned, for the first time, how hard money is.",
+        ], stage5);
+      }
+    }
+  ]);
+}
+
+/* ---------- stage 4: university / work ---------- */
+
+function stage4() {
+  G.stage = 4;
+  G.age = 20;
+  addHistory("You were twenty.");
+
+  renderChoices([
+    "You are twenty.",
+    "",
+    "University is emptier than you imagined.",
+    "",
+    "Not many classes.",
+    "",
+    "You have a lot of time.",
+    "",
+    "You don't know what to do with it.",
+    "",
+    "You —",
+  ], [
+    {
+      text: "Keep " + G.talent + ".",
+      inner: "You still remember what the teacher said.",
+      history: "You kept doing " + G.talent + " at university.",
+      next: function () {
+        render([
+          "You spent two years on " + G.talent + ".",
+          "",
+          "You joined some activities.",
+          "",
+          "People praised you.",
+          "",
+          "But no one said you could live on it.",
+          "",
+          "You started to doubt it too.",
+          "",
+          "You asked yourself: can this feed me?",
+          "",
+          "You had no answer.",
+        ], stage5);
+      }
+    },
+    {
+      text: "Find an internship.",
+      inner: "You feel you should do something serious.",
+      history: "You started looking for internships.",
+      next: function () {
+        addMoney(3000);
+        render([
+          "You found an internship.",
+          "",
+          "A hundred a day.",
+          "",
+          "You worked three months.",
+          "",
+          "You learned to make spreadsheets, send emails, say 'okay, received'.",
+          "",
+          "You felt like you were growing up.",
+          "",
+          "And also like you weren't.",
+        ], stage5);
+      }
+    },
+    {
+      text: "Play.",
+      inner: "There's still time.",
+      history: "You spent most of university playing.",
+      next: function () {
+        render([
+          "You played games, watched shows, slept until noon.",
+          "",
+          "You were happy.",
+          "",
+          "And empty.",
+          "",
+          "Four years passed.",
+          "",
+          "When you looked back, you couldn't remember what you did.",
+          "",
+          "You didn't regret it.",
+          "",
+          "You were just a little scared.",
+        ], stage5);
+      }
+    }
+  ]);
+}
+
+/* ---------- stage 5: graduation ---------- */
+
+function stage5() {
+  G.stage = 5;
+  G.age = 22;
+  addHistory("You were twenty-two. You graduated.");
+
+  renderChoices([
+    "You are twenty-two.",
+    "",
+    "You graduate.",
+    "",
+    "You send out a lot of resumes.",
+    "",
+    "Not many replies.",
+    "",
+    "You start to doubt yourself.",
+    "",
+    "You —",
+  ], [
+    {
+      text: "Keep sending.",
+      inner: "You tell yourself not to stop.",
+      history: "You kept sending resumes.",
+      next: function () {
+        addMoney(-2000);
+        render([
+          "You sent for three months.",
+          "",
+          "You interviewed at a dozen places.",
+          "",
+          "You ended up at a small company.",
+          "",
+          "Five thousand a month.",
+          "",
+          "In the city, a single room costs two thousand.",
+          "",
+          "You did the math. Food, transport, maybe a piece of clothing.",
+          "",
+          "Nothing left at the end of the month.",
+          "",
+          "You remembered saying you wanted to keep " + G.talent + ".",
+          "",
+          "You laughed a little.",
+          "",
+          "You didn't know at what.",
+        ], stage6);
+      }
+    },
+    {
+      text: "Go home.",
+      inner: "You want to rest first.",
+      history: "You went home after graduating.",
+      next: function () {
+        render([
+          "You went home.",
+          "",
+          "Your parents said nothing.",
+          "",
+          "You stayed half a year.",
+          "",
+          "A neighbor asked where you worked.",
+          "",
+          "You said you were looking.",
+          "",
+          "They said, it's hard to find work now.",
+          "",
+          "You nodded.",
+          "",
+          "You didn't know if that was comfort or something else.",
+        ], stage6);
+      }
+    },
+    {
+      text: "Take the civil service exam.",
+      inner: "You want something stable.",
+      history: "You decided to take the civil service exam.",
+      next: function () {
+        addMoney(-3000);
+        render([
+          "You took it twice.",
+          "",
+          "The first time, you were a few points short.",
+          "",
+          "The second time, further.",
+          "",
+          "You looked at the posts from people who passed.",
+          "",
+          "You put down your phone.",
+          "",
+          "You felt like you had been left behind.",
+        ], stage6);
+      }
+    }
+  ]);
+}
+
+/* ---------- stage 6: first job ---------- */
+
+function stage6() {
+  G.stage = 6;
+  G.age = 25;
+  addHistory("You were twenty-five.");
+
+  renderChoices([
+    "You are twenty-five.",
+    "",
+    "You have a job.",
+    "",
+    "Every day: subway, clock in, meetings.",
+    "",
+    "What you do, someone else could do.",
+    "",
+    "You know this.",
+    "",
+    "You —",
+  ], [
+    {
+      text: "Work seriously.",
+      inner: "You want to make something.",
+      history: "You worked seriously.",
+      next: function () {
+        addMoney(2000);
+        render([
+          "You worked overtime for half a year.",
+          "",
+          "Your manager praised you once.",
+          "",
+          "A five hundred raise.",
+          "",
+          "You did the math. Rent went up three hundred.",
+          "",
+          "You netted two hundred.",
+          "",
+          "You weren't unhappy.",
+          "",
+          "You were just tired.",
+        ], stage7);
+      }
+    },
+    {
+      text: "Coast.",
+      inner: "It's all the same anyway.",
+      history: "You started coasting at work.",
+      next: function () {
+        render([
+          "You clocked in and out on time.",
+          "",
+          "No more, no less.",
+          "",
+          "Half a year later, you were called in.",
+          "",
+          "Your manager said you needed more drive.",
+          "",
+          "You nodded.",
+          "",
+          "Afterwards, you were the same.",
+          "",
+          "You knew you wouldn't be fired.",
+          "",
+          "You also knew you wouldn't be promoted.",
+        ], stage7);
+      }
+    },
+    {
+      text: "Change jobs.",
+      inner: "You feel this isn't right.",
+      history: "You changed jobs.",
+      next: function () {
+        addMoney(-1000);
+        render([
+          "You switched.",
+          "",
+          "The new company paid a thousand more.",
+          "",
+          "But more overtime.",
+          "",
+          "Three months in, you realized it was the same as the last one.",
+          "",
+          "You wanted to switch again.",
+          "",
+          "You opened the job app and looked for a long time.",
+          "",
+          "Then you closed it.",
+        ], stage7);
+      }
+    }
+  ]);
+}
+
+/* ---------- stage 7: relationships ---------- */
+
+function stage7() {
+  G.stage = 7;
+  G.age = 27;
+  addHistory("You were twenty-seven.");
+
+  renderChoices([
+    "You are twenty-seven.",
+    "",
+    "You have dated a few times.",
+    "",
+    "Some long, some short.",
+    "",
+    "Once, you talked about the future.",
+    "",
+    "The other person asked, what about a place to live.",
+    "",
+    "You didn't answer.",
+    "",
+    "You —",
+  ], [
+    {
+      text: "Say, wait a few more years.",
+      inner: "You want to save more first.",
+      history: "You said to wait a few more years.",
+      next: function () {
+        render([
+          "The other person asked, how long.",
+          "",
+          "You said you didn't know.",
+          "",
+          "You talked a few more times after that.",
+          "",
+          "Then it ended.",
+          "",
+          "You didn't blame her.",
+          "",
+          "You didn't blame yourself either.",
+          "",
+          "You just felt this wasn't something you could control.",
+        ], stage8);
+      }
+    },
+    {
+      text: "Say, let's break up.",
+      inner: "You don't want to drag her down.",
+      history: "You ended it.",
+      next: function () {
+        render([
+          "You said, let's separate.",
+          "",
+          "She cried.",
+          "",
+          "You didn't.",
+          "",
+          "Afterwards, you sat alone for a long time.",
+          "",
+          "You remembered saying you wanted to keep " + G.talent + ".",
+          "",
+          "You realized you hadn't touched " + G.talent + " in a long time.",
+        ], stage8);
+      }
+    },
+    {
+      text: "Stop dating.",
+      inner: "You feel being alone is fine too.",
+      history: "You decided to stop dating.",
+      next: function () {
+        render([
+          "You put your energy back into work.",
+          "",
+          "You got a small promotion.",
+          "",
+          "A thousand more.",
+          "",
+          "You ate alone, watched movies alone, moved alone.",
+          "",
+          "You got used to it.",
+          "",
+          "Sometimes you woke at night and wondered if this was right.",
+          "",
+          "Then you turned over and went back to sleep.",
+        ], stage8);
+      }
+    }
+  ]);
+}
+
+/* ---------- stage 8: thirty ---------- */
+
+function stage8() {
+  G.stage = 8;
+  G.age = 30;
+  addHistory("You were thirty.");
+
+  renderChoices([
+    "You are thirty.",
+    "",
+    "On your feed: someone got married, someone had a child, someone bought a place.",
+    "",
+    "Someone got promoted, someone went abroad, someone started a company.",
+    "",
+    "You scroll.",
+    "",
+    "You —",
+  ], [
+    {
+      text: "Close the app.",
+      inner: "You don't want to look anymore.",
+      history: "You closed the app.",
+      next: function () {
+        render([
+          "You closed it for half a year.",
+          "",
+          "When you opened it again, someone had divorced.",
+          "",
+          "Someone had lost a job.",
+          "",
+          "Someone had gotten sick.",
+          "",
+          "You didn't feel better seeing this.",
+          "",
+          "You just knew everyone was the same.",
+        ], stage9);
+      }
+    },
+    {
+      text: "Keep scrolling.",
+      inner: "You want to know how others are doing.",
+      history: "You kept scrolling.",
+      next: function () {
+        render([
+          "You looked every day.",
+          "",
+          "The more you looked, the further behind you felt.",
+          "",
+          "You started posting less.",
+          "",
+          "Then you stopped posting.",
+          "",
+          "You didn't want others to know how you were doing.",
+          "",
+          "You didn't want to know yourself.",
+        ], stage9);
+      }
+    },
+    {
+      text: "Call your parents.",
+      inner: "You want to hear their voices.",
+      history: "You called your parents.",
+      next: function () {
+        render([
+          "Your mother asked when you would settle down.",
+          "",
+          "You said, later.",
+          "",
+          "She said, you're not young anymore.",
+          "",
+          "You said, I know.",
+          "",
+          "You were both quiet for a while.",
+          "",
+          "Then she asked if you had eaten.",
+          "",
+          "You said yes.",
+          "",
+          "That was true.",
+          "",
+          "You didn't say what you ate.",
+        ], stage9);
+      }
+    }
+  ]);
+}
+
+/* ---------- stage 9: middle age ---------- */
+
+function stage9() {
+  G.stage = 9;
+  G.age = 40;
+  addHistory("You were forty.");
+
+  renderChoices([
+    "You are forty.",
+    "",
+    "Your parents are old.",
+    "",
+    "You start going to the hospital.",
+    "",
+    "You start counting money.",
+    "",
+    "You —",
+  ], [
+    {
+      text: "Bring your parents to live with you.",
+      inner: "You want to take care of them.",
+      history: "You brought your parents to live with you.",
+      next: function () {
+        addMoney(-8000);
+        render([
+          "You rented a bigger place.",
+          "",
+          "They came.",
+          "",
+          "Your mother cooked for you. Your father watched the door.",
+          "",
+          "The house was livelier.",
+          "",
+          "You were also more tired.",
+          "",
+          "Sometimes you wondered, if they weren't here, would you be lighter.",
+          "",
+          "Then you scolded yourself.",
+          "",
+          "Then you kept going.",
+        ], stage10);
+      }
+    },
+    {
+      text: "Send more money.",
+      inner: "You can't go back.",
+      history: "You sent more money to your parents.",
+      next: function () {
+        addMoney(-5000);
+        render([
+          "You sent two thousand more a month.",
+          "",
+          "Your mother said you didn't have to.",
+          "",
+          "You said take it.",
+          "",
+          "You didn't go back.",
+          "",
+          "You didn't know if it was no time, or not wanting to.",
+          "",
+          "You only knew that once the money was sent, you felt a little better.",
+          "",
+          "Only a little.",
+        ], stage10);
+      }
+    },
+    {
+      text: "Go back.",
+      inner: "You don't want to drift anymore.",
+      history: "You went back to your hometown.",
+      next: function () {
+        addMoney(-3000);
+        render([
+          "You quit and went back.",
+          "",
+          "Half the salary.",
+          "",
+          "But no rent.",
+          "",
+          "You biked to work every day.",
+          "",
+          "On the way, you passed your old school.",
+          "",
+          "You saw kids running with backpacks.",
+          "",
+          "You remembered being one of them.",
+          "",
+          "You remembered saying you wanted to keep " + G.talent + ".",
+          "",
+          "You smiled a little.",
+          "",
+          "Then you kept biking.",
+        ], stage10);
+      }
+    }
+  ]);
+}
+
+/* ---------- stage 10: old age ---------- */
+
+function stage10() {
+  G.stage = 10;
+  G.age = 60;
+  addHistory("You were sixty.");
+
+  render([
+    "You are sixty.",
+    "",
+    "You retired.",
+    "",
+    "Or you haven't yet.",
+    "",
+    "You sit at home, or in a rented room, or in the yard of your old house.",
+    "",
+    "You remember some things.",
+    "",
+    "Not many.",
+    "",
+    "What you remember are small things.",
+    "",
+    "Then you get old.",
+    "",
+    "Then you die.",
+    "",
+    "—",
+  ], showRecall);
+}
+
+/* ---------- ending ---------- */
+
+function showRecall() {
+  clear();
+
+  const wrap = document.createElement("div");
+  wrap.className = "text";
+
+  wrap.appendChild(para("These are the things you did."));
+  wrap.appendChild(document.createElement("br"));
+
+  const recall = document.createElement("div");
+  recall.className = "recall";
+  G.history.forEach(function (h) {
+    const item = document.createElement("div");
+    item.className = "recall-item";
+    item.innerHTML = '<span class="age">' + h.age + '</span>' + h.text;
+    recall.appendChild(item);
+  });
+  wrap.appendChild(recall);
+  G.gameEl.appendChild(wrap);
+
+  const end = document.createElement("div");
+  end.className = "silent";
+  end.textContent = "Nobody asked if you grew up.";
+  G.gameEl.appendChild(end);
+
+  const btn = document.createElement("button");
+  btn.className = "btn";
+  btn.textContent = "Live again";
+  btn.style.marginTop = "30px";
+  btn.onclick = startGame;
+  G.gameEl.appendChild(btn);
+}
+
+/* ---------- boot ---------- */
+
+G.gameEl = document.getElementById("game");
+G.moneyEl = document.getElementById("moneyBar");
+startGame();
+</script>
+</body>
+</html>
