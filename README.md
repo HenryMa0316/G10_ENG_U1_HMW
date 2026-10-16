@@ -32,7 +32,7 @@ This game shows the pressure through:
 - All CSS & JavaScript are inline
 - Visual language: card UI inspired by 'Sanguosha'(a popular Chinese card game; I think it looks beautiful, so I borrowed some ideas) + neon feel from 'Balatro' (another globally popular game)
 
-The final message:
+## The final message:
 - Growing up was never just one thing or some traditional milestones.  
 - Some timelines are blocked by society.  
 - Gen Z don’t have to live by someone else’s schedule.
