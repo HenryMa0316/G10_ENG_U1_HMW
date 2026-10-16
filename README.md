@@ -38,6 +38,6 @@ This game shows the pressure through:
 - Gen Z don’t have to live by someone else’s schedule.
 
 ## Docs
-Also, the main game is in the doc called "index.html).
-The Version 1 Life Sim
-The Version 2 RPG doc was the second idea, which was inspired by your RPG idea, but the pixels were hard to do, so I changed the idea.
+Version 1 was my first idea, which was a Life Simulator, but it was kind of boring as the plots have to be the same, other wise the doc will be very big.
+Version 2, the RPG docs, was  inspired by your RPG idea, but the pixels were hard to do, so I changed the idea.
+Version 3 is the main game (called "index.html"), and the website I submitted on Google Classroom was this one.
