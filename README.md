@@ -15,9 +15,9 @@ This game shows the pressure through:
 - Player-defined milestones
 
 ## Three paths:
-| Tyler | Local: lack of direction & soft expectations |
-| Wei   | Immigrant: compressed by parental sacrifice |
-| Kaya  | Indigenous: early responsibility & systemic weight |
+- | Tyler | Local: lack of direction & soft expectations |
+- | Wei   | Immigrant: compressed by parental sacrifice |
+- | Kaya  | Indigenous: early responsibility & systemic weight |
 
 ## How to Play
 1. Choose a character  
