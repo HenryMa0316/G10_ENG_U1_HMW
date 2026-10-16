@@ -37,3 +37,7 @@ This game shows the pressure through:
 - Some timelines are blocked by society.  
 - Gen Z don’t have to live by someone else’s schedule.
 
+## Docs
+Also, the main game is in the doc called "index.html).
+The Version 1 Life Sim
+The Version 2 RPG doc was the second idea, which was inspired by your RPG idea, but the pixels were hard to do, so I changed the idea.
