@@ -1,0 +1,560 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<title>Not Growing Up — Pixel Prototype</title>
+<style>
+  html, body {
+    margin: 0;
+    padding: 0;
+    background: #0a0a0a;
+    height: 100%;
+    overflow: hidden;
+  }
+  canvas {
+    display: block;
+    image-rendering: pixelated;
+    image-rendering: crisp-edges;
+  }
+  #hud {
+    position: fixed;
+    top: 12px;
+    left: 14px;
+    font-family: 'Courier New', monospace;
+    font-size: 14px;
+    color: #f0e8d8;
+    text-shadow: 2px 2px 0 #000;
+    pointer-events: none;
+    z-index: 10;
+  }
+  #hint {
+    position: fixed;
+    bottom: 10px;
+    left: 50%;
+    transform: translateX(-50%);
+    font-family: 'Courier New', monospace;
+    font-size: 11px;
+    color: #888;
+    text-shadow: 1px 1px 0 #000;
+    pointer-events: none;
+    z-index: 10;
+  }
+</style>
+</head>
+<body>
+<canvas id="c"></canvas>
+<div id="hud">Age: 14 &nbsp; $0</div>
+<div id="hint">WASD / arrows to move</div>
+
+<script>
+/* =========================================================
+   Not Growing Up — pixel prototype
+   Big map, camera follows player, Stardew-style 3/4 view
+   ========================================================= */
+
+const canvas = document.getElementById('c');
+const ctx = canvas.getContext('2d');
+
+// ---- resolution ----
+// We render at a low internal resolution, then scale up.
+// This is how pixel games get crisp.
+const VIEW_W = 320;   // internal width in pixels
+const VIEW_H = 180;   // internal height
+const SCALE = 4;      // each internal pixel = 4 screen pixels
+
+canvas.width = VIEW_W * SCALE;
+canvas.height = VIEW_H * SCALE;
+canvas.style.width = VIEW_W * SCALE + 'px';
+canvas.style.height = VIEW_H * SCALE + 'px';
+ctx.imageSmoothingEnabled = false;
+
+// ---- world ----
+const TILE = 16;
+const WORLD_COLS = 80;
+const WORLD_ROWS = 60;
+const WORLD_W = WORLD_COLS * TILE;
+const WORLD_H = WORLD_ROWS * TILE;
+
+// tile types
+const T_GRASS = 0;
+const T_ROAD = 1;
+const T_PATH = 2;
+const T_WALL = 3;
+const T_DOOR = 4;
+const T_TREE = 5;
+const T_WATER = 6;
+
+const world = [];
+for (let y = 0; y < WORLD_ROWS; y++) {
+  world.push(new Array(WORLD_COLS).fill(T_GRASS));
+}
+
+function rect(x, y, w, h, t) {
+  for (let j = y; j < y + h; j++)
+    for (let i = x; i < x + w; i++)
+      if (j >= 0 && j < WORLD_ROWS && i >= 0 && i < WORLD_COLS)
+        world[j][i] = t;
+}
+
+// ---- buildings ----
+// Each building: { x, y, w, h, name, doorX, doorY, roof, wall }
+const buildings = [
+  // Immigrant home (upper-left)
+  { x: 6,  y: 6,  w: 8, h: 6, name: 'HOME',    doorX: 9,  doorY: 11, roof: '#8a4a3a', wall: '#c8a878' },
+  // Cram school
+  { x: 18, y: 6,  w: 7, h: 5, name: 'CRAM',    doorX: 21, doorY: 10, roof: '#4a5a8a', wall: '#c8c8b8' },
+  // Supermarket
+  { x: 28, y: 6,  w: 9, h: 6, name: 'MARKET',  doorX: 32, doorY: 11, roof: '#5a7a4a', wall: '#d8d8c8' },
+  // School (main street)
+  { x: 44, y: 4,  w: 12, h: 8, name: 'SCHOOL', doorX: 50, doorY: 11, roof: '#6a4a3a', wall: '#e0d0b0' },
+  // Company (main street, lower)
+  { x: 44, y: 36, w: 12, h: 8, name: 'COMPANY',doorX: 50, doorY: 43, roof: '#3a4a5a', wall: '#b8c0c8' },
+  // Police (upper-right)
+  { x: 64, y: 6,  w: 8, h: 6, name: 'POLICE',  doorX: 68, doorY: 11, roof: '#3a3a6a', wall: '#c0c0d0' },
+  // Foster home (lower-right)
+  { x: 64, y: 44, w: 8, h: 6, name: 'FOSTER',  doorX: 68, doorY: 49, roof: '#7a5a3a', wall: '#c8b898' },
+  // Big house (upper-right, local-born)
+  { x: 64, y: 20, w: 10, h: 7, name: 'HOUSE',  doorX: 69, doorY: 26, roof: '#5a3a3a', wall: '#e8e0d0' },
+];
+
+buildings.forEach(b => {
+  rect(b.x, b.y, b.w, b.h, T_WALL);
+  world[b.doorY][b.doorX] = T_DOOR;
+});
+
+// ---- roads ----
+// main horizontal street
+rect(0, 14, WORLD_COLS, 3, T_ROAD);
+// main vertical street
+rect(40, 0, 3, WORLD_ROWS, T_ROAD);
+// side paths
+rect(10, 12, 2, 2, T_PATH);
+rect(22, 11, 2, 3, T_PATH);
+rect(50, 12, 2, 2, T_PATH);
+rect(50, 44, 2, 4, T_PATH);
+rect(68, 12, 2, 2, T_PATH);
+rect(68, 26, 2, 2, T_PATH);
+
+// ---- trees (decoration, block movement) ----
+function tree(cx, cy) {
+  world[cy][cx] = T_TREE;
+}
+for (let i = 0; i < 40; i++) {
+  const x = Math.floor(Math.random() * WORLD_COLS);
+  const y = Math.floor(Math.random() * WORLD_ROWS);
+  if (world[y][x] === T_GRASS) tree(x, y);
+}
+
+// ---- park (upper right area) ----
+rect(64, 28, 12, 6, T_GRASS);
+for (let i = 0; i < 8; i++) {
+  const x = 65 + Math.floor(Math.random() * 10);
+  const y = 29 + Math.floor(Math.random() * 4);
+  if (world[y][x] === T_GRASS) tree(x, y);
+}
+
+// ---- water (bottom left) ----
+rect(4, 46, 14, 8, T_WATER);
+
+/* =========================================================
+   Player
+   ========================================================= */
+
+const player = {
+  x: 10 * TILE,
+  y: 14 * TILE,
+  speed: 1.4,
+  dir: 'down',     // down | up | left | right
+  frame: 0,
+  frameTimer: 0,
+  moving: false,
+  skin: '#e8c090',  // immigrant line default
+};
+
+// skin tones for three lines
+const SKINS = {
+  immigrant: '#e8c090',
+  indigenous: '#a87858',
+  white: '#f0d8b8',
+};
+
+/* =========================================================
+   Pixel sprite drawing
+   ========================================================= */
+
+// We draw the player as a tiny pixel figure:
+// 8 wide, 12 tall. Each "pixel" here is 1 world pixel.
+
+function drawPlayer(px, py, dir, frame) {
+  // px, py = top-left of the 8x12 sprite in world coords
+  const s = player.skin;
+  const shirt = '#4a6a9a';
+  const pants = '#2a2a3a';
+  const hair = '#2a1a10';
+
+  // helper: fill one world pixel
+  function p(x, y, c) {
+    ctx.fillStyle = c;
+    ctx.fillRect(px + x, py + y, 1, 1);
+  }
+
+  // legs (with simple walk animation)
+  const legOffset = (frame === 1) ? 1 : (frame === 3 ? -1 : 0);
+  p(2, 10, pants); p(3, 10, pants);
+  p(5, 10, pants); p(6, 10, pants);
+  p(2, 11 + legOffset, pants); p(3, 11 + legOffset, pants);
+  p(5, 11 - legOffset, pants); p(6, 11 - legOffset, pants);
+
+  // body
+  for (let y = 6; y < 10; y++)
+    for (let x = 2; x < 7; x++)
+      p(x, y, shirt);
+
+  // arms
+  p(1, 7, s); p(1, 8, s);
+  p(7, 7, s); p(7, 8, s);
+
+  // head
+  for (let y = 1; y < 6; y++)
+    for (let x = 2; x < 7; x++)
+      p(x, y, s);
+
+  // hair (depends on direction)
+  if (dir === 'down') {
+    for (let x = 2; x < 7; x++) p(x, 1, hair);
+    p(2, 2, hair); p(6, 2, hair);
+  } else if (dir === 'up') {
+    for (let x = 2; x < 7; x++) { p(x, 1, hair); p(x, 2, hair); }
+  } else if (dir === 'left') {
+    for (let x = 2; x < 7; x++) p(x, 1, hair);
+    p(2, 2, hair); p(2, 3, hair);
+  } else {
+    for (let x = 2; x < 7; x++) p(x, 1, hair);
+    p(6, 2, hair); p(6, 3, hair);
+  }
+
+  // eyes (only when facing down or side)
+  if (dir === 'down') {
+    p(3, 4, '#000'); p(5, 4, '#000');
+  } else if (dir === 'left') {
+    p(3, 4, '#000');
+  } else if (dir === 'right') {
+    p(5, 4, '#000');
+  }
+}
+
+/* =========================================================
+   Tile drawing
+   ========================================================= */
+
+function drawTile(t, sx, sy) {
+  if (t === T_GRASS) {
+    ctx.fillStyle = '#5a8a4a';
+    ctx.fillRect(sx, sy, TILE, TILE);
+    // small darker dots for texture
+    ctx.fillStyle = '#4a7a3a';
+    ctx.fillRect(sx + 3, sy + 5, 2, 2);
+    ctx.fillRect(sx + 10, sy + 2, 2, 2);
+    ctx.fillRect(sx + 7, sy + 11, 2, 2);
+  } else if (t === T_ROAD) {
+    ctx.fillStyle = '#5a5a5a';
+    ctx.fillRect(sx, sy, TILE, TILE);
+    ctx.fillStyle = '#6a6a6a';
+    ctx.fillRect(sx + 2, sy + 2, 4, 4);
+    ctx.fillRect(sx + 10, sy + 10, 4, 4);
+  } else if (t === T_PATH) {
+    ctx.fillStyle = '#a89878';
+    ctx.fillRect(sx, sy, TILE, TILE);
+    ctx.fillStyle = '#988868';
+    ctx.fillRect(sx + 4, sy + 4, 2, 2);
+    ctx.fillRect(sx + 11, sy + 9, 2, 2);
+  } else if (t === T_WALL) {
+    // wall base — actual building drawn on top
+    ctx.fillStyle = '#c8a878';
+    ctx.fillRect(sx, sy, TILE, TILE);
+  } else if (t === T_DOOR) {
+    ctx.fillStyle = '#6a4a2a';
+    ctx.fillRect(sx, sy, TILE, TILE);
+    ctx.fillStyle = '#8a6a4a';
+    ctx.fillRect(sx + 2, sy + 2, TILE - 4, TILE - 4);
+    ctx.fillStyle = '#f0d060';
+    ctx.fillRect(sx + 11, sy + 7, 2, 2);
+  } else if (t === T_TREE) {
+    ctx.fillStyle = '#5a8a4a';
+    ctx.fillRect(sx, sy, TILE, TILE);
+    // trunk
+    ctx.fillStyle = '#4a2a1a';
+    ctx.fillRect(sx + 6, sy + 10, 4, 6);
+    // leaves
+    ctx.fillStyle = '#2a5a2a';
+    ctx.fillRect(sx + 2, sy + 2, 12, 10);
+    ctx.fillStyle = '#3a6a3a';
+    ctx.fillRect(sx + 3, sy + 3, 10, 8);
+  } else if (t === T_WATER) {
+    ctx.fillStyle = '#3a5a8a';
+    ctx.fillRect(sx, sy, TILE, TILE);
+    ctx.fillStyle = '#4a6a9a';
+    ctx.fillRect(sx + 2, sy + 6, 12, 2);
+  }
+}
+
+function drawBuilding(b) {
+  const x = b.x * TILE;
+  const y = b.y * TILE;
+  const w = b.w * TILE;
+  const h = b.h * TILE;
+
+  // wall
+  ctx.fillStyle = b.wall;
+  ctx.fillRect(x, y, w, h);
+
+  // roof (top 40%)
+  ctx.fillStyle = b.roof;
+  ctx.fillRect(x, y, w, Math.floor(h * 0.45));
+
+  // roof edge
+  ctx.fillStyle = 'rgba(0,0,0,0.2)';
+  ctx.fillRect(x, y + Math.floor(h * 0.45), w, 2);
+
+  // windows
+  ctx.fillStyle = '#8ac8e8';
+  const winY = y + Math.floor(h * 0.55);
+  const winSize = 8;
+  const gap = 6;
+  let wx = x + gap;
+  while (wx + winSize < x + w - gap) {
+    ctx.fillRect(wx, winY, winSize, winSize);
+    ctx.fillStyle = '#6aa8c8';
+    ctx.fillRect(wx, winY + winSize - 2, winSize, 2);
+    ctx.fillStyle = '#8ac8e8';
+    wx += winSize + gap;
+  }
+
+  // door
+  const dx = b.doorX * TILE;
+  const dy = b.doorY * TILE;
+  ctx.fillStyle = '#4a2a1a';
+  ctx.fillRect(dx + 2, dy + 2, TILE - 4, TILE - 2);
+  ctx.fillStyle = '#6a4a2a';
+  ctx.fillRect(dx + 3, dy + 3, TILE - 6, TILE - 4);
+  ctx.fillStyle = '#f0d060';
+  ctx.fillRect(dx + 11, dy + 8, 2, 2);
+
+  // name
+  ctx.fillStyle = '#fff';
+  ctx.font = '8px monospace';
+  ctx.textAlign = 'center';
+  ctx.fillText(b.name, x + w / 2, y - 3);
+  ctx.textAlign = 'left';
+}
+
+/* =========================================================
+   Camera
+   ========================================================= */
+
+const camera = { x: 0, y: 0 };
+
+function updateCamera() {
+  camera.x = Math.floor(player.x - VIEW_W / 2);
+  camera.y = Math.floor(player.y - VIEW_H / 2);
+  if (camera.x < 0) camera.x = 0;
+  if (camera.y < 0) camera.y = 0;
+  if (camera.x > WORLD_W - VIEW_W) camera.x = WORLD_W - VIEW_W;
+  if (camera.y > WORLD_H - VIEW_H) camera.y = WORLD_H - VIEW_H;
+}
+
+/* =========================================================
+   Movement
+   ========================================================= */
+
+const keys = {};
+
+document.addEventListener('keydown', e => {
+  const k = e.key.toLowerCase();
+  keys[k] = true;
+  if (k === 'arrowup' || k === 'arrowdown' || k === 'arrowleft' || k === 'arrowright')
+    e.preventDefault();
+});
+document.addEventListener('keyup', e => {
+  const k = e.key.toLowerCase();
+  keys[k] = false;
+});
+
+function tileAt(worldX, worldY) {
+  const tx = Math.floor(worldX / TILE);
+  const ty = Math.floor(worldY / TILE);
+  if (tx < 0 || ty < 0 || tx >= WORLD_COLS || ty >= WORLD_ROWS) return T_WALL;
+  return world[ty][tx];
+}
+
+function canWalk(worldX, worldY) {
+  // check the four corners of the player's feet box
+  const boxW = 6;
+  const boxH = 6;
+  const left = worldX + 1;
+  const right = worldX + 1 + boxW;
+  const top = worldY + 6;
+  const bottom = worldY + 6 + boxH;
+  const pts = [
+    [left, top], [right, top],
+    [left, bottom], [right, bottom],
+  ];
+  for (const [px, py] of pts) {
+    const t = tileAt(px, py);
+    if (t === T_WALL || t === T_TREE || t === T_WATER) return false;
+  }
+  return true;
+}
+
+function updatePlayer(dt) {
+  let dx = 0, dy = 0;
+  if (keys['w'] || keys['arrowup']) dy -= 1;
+  if (keys['s'] || keys['arrowdown']) dy += 1;
+  if (keys['a'] || keys['arrowleft']) dx -= 1;
+  if (keys['d'] || keys['arrowright']) dx += 1;
+
+  player.moving = (dx !== 0 || dy !== 0);
+
+  if (player.moving) {
+    // normalize diagonal
+    if (dx !== 0 && dy !== 0) {
+      dx *= 0.707;
+      dy *= 0.707;
+    }
+    // direction
+    if (Math.abs(dx) > Math.abs(dy)) {
+      player.dir = dx > 0 ? 'right' : 'left';
+    } else if (dy !== 0) {
+      player.dir = dy > 0 ? 'down' : 'up';
+    }
+
+    const step = player.speed * dt;
+    const nx = player.x + dx * step;
+    const ny = player.y + dy * step;
+
+    if (canWalk(nx, player.y)) player.x = nx;
+    if (canWalk(player.x, ny)) player.y = ny;
+
+    // animation
+    player.frameTimer += dt;
+    if (player.frameTimer > 0.15) {
+      player.frameTimer = 0;
+      player.frame = (player.frame + 1) % 4;
+    }
+  } else {
+    player.frame = 0;
+  }
+}
+
+/* =========================================================
+   Render
+   ========================================================= */
+
+function render() {
+  // clear
+  ctx.fillStyle = '#1a2a1a';
+  ctx.fillRect(0, 0, canvas.width, canvas.height);
+
+  ctx.save();
+  ctx.scale(SCALE, SCALE);
+
+  // draw tiles in view
+  const startCol = Math.floor(camera.x / TILE);
+  const startRow = Math.floor(camera.y / TILE);
+  const endCol = startCol + Math.ceil(VIEW_W / TILE) + 2;
+  const endRow = startRow + Math.ceil(VIEW_H / TILE) + 2;
+
+  for (let y = startRow; y < endRow; y++) {
+    for (let x = startCol; x < endCol; x++) {
+      if (x < 0 || y < 0 || x >= WORLD_COLS || y >= WORLD_ROWS) continue;
+      const t = world[y][x];
+      const sx = x * TILE - camera.x;
+      const sy = y * TILE - camera.y;
+      drawTile(t, sx, sy);
+    }
+  }
+
+  // draw buildings
+  buildings.forEach(b => {
+    const sx = b.x * TILE - camera.x;
+    const sy = b.y * TILE - camera.y;
+    if (sx + b.w * TILE < 0 || sx > VIEW_W) return;
+    if (sy + b.h * TILE < 0 || sy > VIEW_H) return;
+    // temporarily offset draw
+    const ox = b.x * TILE - camera.x;
+    const oy = b.y * TILE - camera.y;
+    drawBuildingAt(b, ox, oy);
+  });
+
+  // draw player
+  const psx = Math.floor(player.x - camera.x) - 4;
+  const psy = Math.floor(player.y - camera.y) - 10;
+  drawPlayer(psx, psy, player.dir, player.frame);
+
+  ctx.restore();
+}
+
+function drawBuildingAt(b, x, y) {
+  const w = b.w * TILE;
+  const h = b.h * TILE;
+
+  ctx.fillStyle = b.wall;
+  ctx.fillRect(x, y, w, h);
+
+  ctx.fillStyle = b.roof;
+  ctx.fillRect(x, y, w, Math.floor(h * 0.45));
+
+  ctx.fillStyle = 'rgba(0,0,0,0.2)';
+  ctx.fillRect(x, y + Math.floor(h * 0.45), w, 2);
+
+  ctx.fillStyle = '#8ac8e8';
+  const winY = y + Math.floor(h * 0.55);
+  const winSize = 8;
+  const gap = 6;
+  let wx = x + gap;
+  while (wx + winSize < x + w - gap) {
+    ctx.fillRect(wx, winY, winSize, winSize);
+    ctx.fillStyle = '#6aa8c8';
+    ctx.fillRect(wx, winY + winSize - 2, winSize, 2);
+    ctx.fillStyle = '#8ac8e8';
+    wx += winSize + gap;
+  }
+
+  const dx = b.doorX * TILE - camera.x;
+  const dy = b.doorY * TILE - camera.y;
+  ctx.fillStyle = '#4a2a1a';
+  ctx.fillRect(dx + 2, dy + 2, TILE - 4, TILE - 2);
+  ctx.fillStyle = '#6a4a2a';
+  ctx.fillRect(dx + 3, dy + 3, TILE - 6, TILE - 4);
+  ctx.fillStyle = '#f0d060';
+  ctx.fillRect(dx + 11, dy + 8, 2, 2);
+
+  ctx.fillStyle = '#fff';
+  ctx.font = '8px monospace';
+  ctx.textAlign = 'center';
+  ctx.fillText(b.name, x + w / 2, y - 3);
+  ctx.textAlign = 'left';
+}
+
+/* =========================================================
+   Loop
+   ========================================================= */
+
+let last = performance.now();
+
+function loop(now) {
+  const dt = Math.min((now - last) / 1000, 0.05);
+  last = now;
+
+  updatePlayer(dt);
+  updateCamera();
+  render();
+
+  requestAnimationFrame(loop);
+}
+
+requestAnimationFrame(loop);
+
+</script>
+</body>
+</html>
